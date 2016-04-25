@@ -1,0 +1,9 @@
+%%% -*-erlang-*-
+{application, cli,
+ [{description, "Command line interface utils"},
+  {vsn, "0.0.0"},
+  {modules, []},
+  {registered, []},
+  {applications, [kernel, stdlib]},
+  {env, []}
+  ]}.

@@ -1,0 +1,219 @@
+# Goals
+
+- Support for full featured command line interfaces (CLIs) in Erlang
+- Trivially embeddable library, not a framework
+- Consistent with mainstream POSIX utility conventions
+- Support for commands with sub-parsers
+
+# Design Notes
+
+The following is a collection of design notes inspired by various
+publicly available sources, which are mentioned where applicable.
+
+## Notes from The Open Group Base Specifications Issue 7
+
+See the
+[Utility Conventions](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12)
+chapter.
+
+Note that *12.2 Utility Syntax Guidelines* in the above documentation
+provides a number of guidelines. These are supported by *erlang-cli*
+(i.e. they are not prohibited either technically or by convention) but
+they are not strictly enforced. The one exception is guideline 9: "All
+options should precede operands on the command line" which is enforced
+currently (see notes below)
+
+Options are always listed before positional arguments. This conforms
+to the Utility Argument Syntax. However, it diverges from Python's
+argparse, which allows options to be specified after positional
+arguments. This decision is opinionated and controversial as it's
+technically possible to differentiate between positional arguments and
+options. For the time being however it's made for simplicity and
+conformance to the POSIX guidelines.
+
+This rule will have to be relaxed in the case of commands, which
+represent sub-programs and should have their own set of options and
+positional arguments.
+
+Options may have either short forms, long forms, or both short and
+long forms. Options that do not have arguments may be specified
+together using their short form as a single argument.
+
+The POSIX guidelines provides for two methods of showing command
+usage. The first lists options together, as in:
+
+    utility_name [-abcDxyz][-p arg][operand]
+
+The second uses a catch all `[options]` placeholder, as in:
+
+    utility_name [options][operands]
+
+As a simplifying step *erlang-cli* will use the second form for
+options, relying on the full help content below the usage
+prologue. This is also controversial, especially for very simple
+programs. It may be desirable to parameterize this behavior.
+
+Option arguments and positional arguments that are optional (i.e. are
+not required) are specified in usage or help content using surrounding
+square brackets '[' and ']'.
+
+Ellipses "..." are used to indicate that the preceding option or
+positional argument may be repeated.
+
+## Argument Types and Validation
+
+If an option argument or positional argument can be converted to a
+number, it will be. Both integers and floats will be supported. A
+parser however may modify this behavior to force values to be parsed
+as text.
+
+*erlang-cli* should support a reasonably rich set of validation rules
+to ensure that parsed values may be used directly without further
+validation. This must include ultimately the ability to apply a
+function to raw input to both validate and generate values as needed.
+
+Usage and help text must be wrapped where possible. Wrapping rules are
+yet to be defined.
+
+## API Conventions
+
+*erlang-cli* makes use of internal types but does not expose those to
+users.
+
+Required arguments are specified as the initial arguments for a
+function. Optional arguments are either specified by using functions
+with higher arity (i.e. they accept more arguments) or as proplists.
+
+Results follow the Erlang conventions of using tagged two-tuples for
+both success and error results, or untagged values and exceptions.
+
+Optional arguments lists are specified using proplists rather than maps.
+
+Resulting lists of parsed and validated arguments use proplists rather
+than maps.
+
+## Usage and Help
+
+*erlang-cli* will provide reasonable default formatting for usage and
+help text. As stated in goals, *erlang-cli* will produce output that
+is consistent with POSIX usage/synopsis guidelines.
+
+*erlang-cli* will support custom usage and help formatting and content
+where reasonable.
+
+Some of the POSIX utilities used to establish formatting guidelines include:
+
+- ls
+- cp
+- sed
+- grep
+
+The observations below generally hold true for these utilities.
+
+Help text starts with single line usage examples:
+
+    Usage: <program> <options-spec> <positional-args-spec>
+
+The word usage is always capitalized.
+
+Some utilities list multiple usage patterns. This is arguably clearer
+than providing complex syntax for argument configurations in a single
+usage example. It's not clear how multiple usage examples might be
+implemented in *erlang-cli*.
+
+Immediately following the usage line is usually a single line
+describing the command. The single line description is a complete
+sentence - i.e. ends with a period. Additional descriptive paragraphs
+may follow, though it seems by convention that the "front matter" of
+utility help is kept to a minimum and detailed help is provided at the
+end of the options list.
+
+Help text appears to always be wrap at column 79.
+
+After the command description, there's a list of options.
+
+Options are listed with their short and/or long form, followed by
+spaces up to column 30, where the option description begins. If an
+option description needs to wrap, it is indented on the next line at
+column 30.
+
+Option short and long forms are formatted as follows:
+
+    '  ' [short_form] [', '] [long_form]
+
+where at least one of `short_form` or `long_form` appears and `', '`
+appears when both `short_form` and `long_form` appear.
+
+It's common to see two options, which appear at the end of the list of
+options and only in long form:
+
+    --help     display this help and exit
+    --version  output version information and exit
+
+None of these utilities support commands.
+
+Commands however may be supported in a separate list using a similar
+format to options.
+
+## Commands and Subparsers
+
+Each parser must support optional *commands*, each of which is
+associated with another parser. This allows a single command line
+utility to perform multiple actions, each corresponding to a command
+name.
+
+Commands may not be nested. This is controversial, but is a
+simplifying decision for now. Developers should consider using command
+name spaces, separating tier with hyphens. For example, if a nested
+command might be this:
+
+    mycli foo list [OPTION]... [ARG]...
+    mycli foo create [OPTION]... [ARG]...
+    mycli foo delete [OPTION]... [ARG]...
+
+Consider a flattened command structure:
+
+    mycli foo-list [OPTION]... [ARG]...
+    mycli foo-create [OPTION]... [ARG]...
+    mycli foo-delete [OPTION]... [ARG]...
+
+Common options and position arguments may be duplicated as needed
+using macros, variables, functions - or any combination thereof!
+
+# Glossary
+
+Argument
+: An element in the array of arguments passed to a program
+
+Command
+: An single positional argument that represent a command to execute
+and indicates that a sub-parser should be used handle subsequent
+arguments
+
+Option
+: An argument consisting of a leading hyphen character followed by
+letters or digits
+
+Option Argument
+: An argument immediately following an option
+
+Parser
+: A representation of command line parser that can be used to process
+raw command line arguments
+
+Positional Argument
+: An argument that follows the last option or option argument
+
+Required Argument
+: A positional argument that must be provided
+
+Required Option Argument
+: An option argument that must be provided
+
+Short Form Option
+: An option consisting of a single leading hyphen followed by a single
+character or digit
+
+Long Form Option
+: An option consisting of two leading hyphens followed by one or more
+characters or digits
