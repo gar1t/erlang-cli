@@ -1,3 +1,4 @@
 *.beam
 *.pyc
+erl_crash.dump
 /build

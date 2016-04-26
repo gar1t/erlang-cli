@@ -1,3 +1,7 @@
+<style>
+pre { background-color: #e6e6e6; padding: 6px; }
+</style>
+
 # Goals
 
 - Support for full featured command line interfaces (CLIs) in Erlang
@@ -5,7 +9,7 @@
 - Consistent with mainstream POSIX utility conventions
 - Support for commands with sub-parsers
 
-# Design Notes
+# Design notes
 
 The following is a collection of design notes inspired by various
 publicly available sources, which are mentioned where applicable.
@@ -60,7 +64,7 @@ square brackets '[' and ']'.
 Ellipses "..." are used to indicate that the preceding option or
 positional argument may be repeated.
 
-## Argument Types and Validation
+## Argument types and validation
 
 If an option argument or positional argument can be converted to a
 number, it will be. Both integers and floats will be supported. A
@@ -75,7 +79,7 @@ function to raw input to both validate and generate values as needed.
 Usage and help text must be wrapped where possible. Wrapping rules are
 yet to be defined.
 
-## API Conventions
+## API conventions
 
 *erlang-cli* makes use of internal types but does not expose those to
 users.
@@ -92,7 +96,7 @@ Optional arguments lists are specified using proplists rather than maps.
 Resulting lists of parsed and validated arguments use proplists rather
 than maps.
 
-## Usage and Help
+## Usage and help
 
 *erlang-cli* will provide reasonable default formatting for usage and
 help text. As stated in goals, *erlang-cli* will produce output that
@@ -107,6 +111,8 @@ Some of the POSIX utilities used to establish formatting guidelines include:
 - cp
 - sed
 - grep
+- mkdir
+- tar
 
 The observations below generally hold true for these utilities.
 
@@ -155,7 +161,176 @@ None of these utilities support commands.
 Commands however may be supported in a separate list using a similar
 format to options.
 
-## Commands and Subparsers
+## Formatting option help
+
+There are a few schemes in practice for formatting option help.
+
+Nearly all commands represent an option using the grammar listed
+above. E.g. '-f/--force' would appear as:
+
+      -f, --force
+
+The help text formatting however differs across commands.
+
+Some formats maintain a left margin starting at col 31. E.g.
+
+      -f, --force                  do not prompt before overwriting
+
+    01234567890123456789012345678901234567890123456789012345678901234567890123456789
+    0         1         2         3         4         5         6         7
+
+Long lines (past col 79) are wrapped, either at col 31 or col 33
+(i.e. a two space indent on subsequent lines). E.g.
+
+      -u, --update                 move only when the SOURCE file is newer
+                                     than the destination file or when the
+                                     destination file is missing
+
+If an option name would extend into the help text, the help text is
+shifted accordingly to ensure two spaces between the itself and the
+name. E.g.
+
+      -t, --target-directory=DIRECTORY  move all SOURCE arguments into DIRECTORY
+
+Some commands use column alignment that's different from 30, though
+they are less common.
+
+Some commands, e.g. sed, display help text on a new line following the
+option name.
+
+In the interest of consistency with the majority of standard POSIX
+commands, we will adopt these rules:
+
+- Options names are displayed using the standard '-h, --help' style
+- Option help text will begin on the same line as the name starting at
+  column COL
+- Long option help text will be wrapped to subsequent lines as needed
+  with each line starting at column COL
+
+COL may be 31 or some lower number. Ideally it would be configurable.
+
+Subsequent lines of help text will not be indented by two spaces, as
+is a common practice for commands. This added level of indentation
+doesn't seem to help readability while only adding irregularity.
+
+Here's an example from `tar`:
+
+      -k, --keep-old-files       don't replace existing files when extracting,
+                                 treat them as errors
+          --keep-directory-symlink   preserve existing symlinks to directories when
+                                 extracting
+          --keep-newer-files     don't replace existing files that are newer than
+                                 their archive copies
+
+    01234567890123456789012345678901234567890123456789012345678901234567890123456789
+    0         1         2         3         4         5         6         7
+
+## Help for positional arguments
+
+The help output for the most utilities does not include specific help
+for positional arguments. Instead, positional arguments are
+described in general help text.
+
+This doesn't make a lot of sense I think - if options have help text I
+think so too should positional arguments.
+
+Python's argparser provides help text for each positional argument.
+
+Python's Click framework has this to say:
+
+> Arguments cannot be documented this way. This is to follow the
+> general convention of Unix tools of using arguments for only the
+> most necessary things and to document them in the introduction text
+> by referring to them by name.
+
+Their observation is correct, however it seems odd to deliberately
+remove a feature that would appear to provide additional information.
+
+I'm tempted to provide argument help text under an "Arguments" heading
+(or possibly no heading at all), but let users optionally hide that
+section to conform with the POSIX convention (note I haven't seen this
+documented explicitly, but it's certainly the convention).
+
+For example:
+
+    Usage: hello [OPTION]... MSG
+    Prints a message to the console.
+
+      MSG             message to print
+
+    Options:
+
+      -C, --caps      print message in caps
+
+Alternatively, to conform to the POSIX convention, the parser can be
+created with a `hide_arg_help` flag, in which case help text like this
+can be generated:
+
+    Usage: hello [OPTION]... MSG
+    Prints MSG to the console.
+
+    Options:
+
+      -C, --caps      print message in caps
+
+This is arguably better -- it's shorter and more natural. And indeed
+if the list of arguments is short, as it should be, this form of
+documentation is superior.
+
+We can decide which default behavior is preferable and name the parser
+option accordingly (i.e. show_arg_help vs hide_arg_help).
+
+## Help text width
+
+The standard in all of the above utilities is to wrap text at
+col 79. No attempt is made to wrap according to the terminal width.
+
+Here are some reasons why this is a reasonable approach:
+
+- Getting the correct terminal width is not always trivial - it
+  introduces moving parts that can fail
+- Anyone using a terminal width of less than 80 will be suffering anyway
+- Text wrapping past 79 is harder to read
+
+## Argument names
+
+Rather than infer an argument name, `erlang-cli` will require the name
+up front when defining the argument. If the argument is an option,
+sensible defaults will be used for the option name. This shifts the
+emphasis away from the user interface to the data structure.
+
+This is the simplest argument definition:
+
+    cli:arg(foo, "a positional arg")
+
+An option may be specified using additional argument options:
+
+    cli:arg(bar, "an option", [option])
+
+Alternatively:
+
+    cli:option(bar, "an option")
+
+By default an option may be specified using its long form, which is
+`"--" + NAME`, where `NAME` is the argument atom converted to a
+string, substituting underscores (`_`) with hyphens (`-`).
+
+In the example above, the value for `bar` may be specified using
+`--bar VALUE` or `--bar=VALUE`.
+
+Option names may be explicitly provided using the `name` option:
+
+    cli:arg(bar, "an option", [option, {name, "-b, --bar"}])
+    cli:option(bar, "an option", [{name, "-b, --bar"})
+
+or alternatively with a two-tuple for `option`:
+
+    cli:arg(bar, "an option", [{option, "-b, --bar"}])
+
+## Commands and subparsers
+
+NOTE: Support for commands will be added once the base/root
+functionality is implemented.
 
 Each parser must support optional *commands*, each of which is
 associated with another parser. This allows a single command line
@@ -180,40 +355,51 @@ Consider a flattened command structure:
 Common options and position arguments may be duplicated as needed
 using macros, variables, functions - or any combination thereof!
 
+# Roadmap ideas
+
+- Commands
+- Provide default argument values using environment variables
+- User prompts
+- Autocomplete
+- Manpage integration
+- Plain text documentation (i.e. storing help text in a formatted
+  plain text file)
+- Option sections (see `tar --help`)
+
 # Glossary
 
-Argument
+**Argument**
 : An element in the array of arguments passed to a program
 
-Command
+**Command**
 : An single positional argument that represent a command to execute
 and indicates that a sub-parser should be used handle subsequent
 arguments
 
-Option
+**Option**
 : An argument consisting of a leading hyphen character followed by
 letters or digits
 
-Option Argument
+**Option Argument**
 : An argument immediately following an option
 
-Parser
+**Parser**
 : A representation of command line parser that can be used to process
 raw command line arguments
 
-Positional Argument
+**Positional Argument**
 : An argument that follows the last option or option argument
 
-Required Argument
+**Required Argument**
 : A positional argument that must be provided
 
-Required Option Argument
+**Required Option Argument**
 : An option argument that must be provided
 
-Short Form Option
+**Short Form Option**
 : An option consisting of a single leading hyphen followed by a single
 character or digit
 
-Long Form Option
+**Long Form Option**
 : An option consisting of two leading hyphens followed by one or more
 characters or digits

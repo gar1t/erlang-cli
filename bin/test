@@ -1,0 +1,33 @@
+#!/usr/bin/env escript
+%%-*-erlang-*-
+%%! -pa build/default/lib/cli/ebin
+
+main(_Args) ->
+    try
+        cli_tests:run()
+    catch
+        _:Err ->
+            print_error(Err, erlang:get_stacktrace()),
+            erlang:halt(1)
+    end.
+
+print_error(Err, Stack) ->
+    io:format("ERROR~n"),
+    print_file_and_line(Err, Stack),
+    io:format("~p~n", [Stack]).
+
+print_file_and_line(Err, Stack) ->
+    case last_file_info(Stack) of
+        {File, Line} ->
+            io:format("~s:~b: ~99999p~n", [File, Line, Err]);
+        error ->
+            io:format("~99999p~n", [Err])
+    end.
+
+last_file_info([{_, _, _, Attrs}|Rest]) ->
+    case proplists:get_value(file, Attrs) of
+        undefined -> last_file_info(Rest);
+        File -> {File, proplists:get_value(line, Attrs)}
+    end;
+last_file_info([]) ->
+    error.

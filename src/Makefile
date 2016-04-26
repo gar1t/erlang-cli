@@ -1,2 +1,7 @@
+home = $(realpath .)/..
+
 _default:
-	cd $(realpath .)/..; make
+	cd $(home); make
+
+%:
+	cd $(home); make $@
