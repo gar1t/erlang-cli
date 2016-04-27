@@ -13,11 +13,19 @@ main(Args) ->
 
 sample_parser() ->
     cli:parser(
-      "sample", "1.0",
-      "A sample CLI using erlang-cli.\n"
-      "\n"
-      "This program illustrates various capabilities of erlang-cli. It's "
-      "sweet. You'll know this when you try it.",
+      "sample",
+      ("1.0\n"
+       "Copyright (C) 2016 Garrett Smith\n"
+       "License GPLv3+: GNU GPL version 3 or later "
+       "<http://gnu.org/licenses/gpl.html>. This is free software: "
+       "you are free to change and redistribute it. There is NO WARRANTY, "
+       "to the extent permitted by law.\n"
+       "\n"
+       "Written by Garrett Smith."),
+      ("A sample CLI using erlang-cli.\n"
+       "\n"
+       "This program illustrates various capabilities of erlang-cli. It's "
+       "sweet. You'll know this when you try it."),
       [cli:arg(msg, "message to print", [{default, "Hello yo!"}]),
        cli:arg(caps, "print message in caps", [{flag, "-C, --caps"}]),
        cli:arg(x, "the X factor", [{flag, "-X"}]),

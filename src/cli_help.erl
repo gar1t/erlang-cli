@@ -5,6 +5,10 @@
 -define(page_width, 79).
 -define(arg_desc_col, 30).
 
+%% ===================================================================
+%% Print help
+%% ===================================================================
+
 print_help(Parser) ->
     print_help(standard_error, Parser).
 
@@ -44,12 +48,6 @@ print_program_desc(Device, Parser) ->
 formatted_program_desc(Parser) ->
     Pars = split_lines(cli_parser:desc(Parser)),
     prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
-
-pars_doc(Pars) ->
-    prettypr:par([prettypr:break(text_par_or_empty(Par)) || Par <- Pars]).
-
-text_par_or_empty("") -> prettypr:empty();
-text_par_or_empty(Text) -> prettypr:text_par(Text).
 
 print_options(Device, Parser) ->
     io:format(Device, "Options:~n", []),
@@ -125,9 +123,6 @@ print_arg_desc(Device, Desc) ->
     io:format(Device, "~n", []),
     print_indented_arg_lines(Device, Rest).
 
-split_lines(Str) ->
-    re:split(Str, "\n", [{return, list}]).
-
 print_indented_arg_lines(Device, [Line|Rest]) ->
     io:format(Device, string:copies(" ", ?arg_desc_col), []),
     io:format(Device, Line, []),
@@ -142,16 +137,36 @@ print_help_and_version_options(Device, _Parser) ->
     io:format(
       Device, "      --version  print version information and exit~n", []).
 
+%% ===================================================================
+%% Print version
+%% ===================================================================
+
+print_version(Parser) ->
+    print_version(standard_error, Parser).
+
+print_version(Device, Parser) ->    
+    io:format(Device, "~s ", [cli_parser:prog(Parser)]),
+    io:format(Device, formatted_version(Parser), []).
+
+formatted_version(Parser) ->
+    Pars = split_lines(cli_parser:version(Parser)),
+    prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
+
+%% ===================================================================
+%% Helpers
+%% ===================================================================
+
 print_sp(Device) ->
     io:format(Device, " ", []).
 
 print_lf(Device) ->
     io:format(Device, "~n", []).
 
-print_version(Parser) ->
-    print_version(standard_error, Parser).
+split_lines(Str) ->
+    re:split(Str, "\n", [{return, list}]).
 
-print_version(Device, Parser) ->
-    Prog = cli_parser:prog(Parser),
-    Version = cli_parser:version(Parser),
-    io:format(Device, "~s ~s~n", [Prog, Version]).
+pars_doc(Pars) ->
+    prettypr:par([prettypr:break(text_par_or_empty(Par)) || Par <- Pars]).
+
+text_par_or_empty("") -> prettypr:empty();
+text_par_or_empty(Text) -> prettypr:text_par(Text).
