@@ -14,13 +14,24 @@ main(Args) ->
 sample_parser() ->
     cli:parser(
       "sample", "1.0",
-      "A sample CLI using erlang-cli.",
-      [cli:arg(msg,  "message to print"),
-       cli:arg(caps, "print message in caps",[{flag, "-C, --caps"}]),
-       cli:arg(some_long_option,
-               "this is some really long option - not sure what to make "
-               "of it really; super cool, or super weird?",
-               [{option, "-L, --super-long-option"}])]).
+      "A sample CLI using erlang-cli.\n"
+      "\n"
+      "This program illustrates various capabilities of erlang-cli. It's "
+      "sweet. You'll know this when you try it.",
+      [cli:arg(msg, "message to print", [{default, "Hello yo!"}]),
+       cli:arg(caps, "print message in caps", [{flag, "-C, --caps"}]),
+       cli:arg(x, "the X factor", [{flag, "-X"}]),
+       cli:arg(y, "the Y factor", [{option, "-Y"}, {default, "123"}]),
+       cli:arg(
+         some_long_option,
+         "this is some really long option - not sure what to make "
+         "of it really; super cool, or super weird?",
+         [{option, "-L, --super-long-option"}]),
+       cli:arg(
+         maybe_value_option,
+         "you can specify a value here or not - up to you!",
+         [option, {default, "abc"}, {metavar, "MYSTERY"}])
+      ]).
 
 handle_parsed_args(Args) ->
     io:format("TODO: handle args: ~p~n", [Args]).

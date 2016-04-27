@@ -11,7 +11,6 @@ print_help(Parser) ->
 print_help(Device, Parser) ->
     print_usage_line(Device, Parser),
     print_program_desc(Device, Parser),
-    print_lf(Device),
     print_options(Device, Parser).
 
 print_usage_line(Device, Parser) ->
@@ -43,8 +42,14 @@ print_program_desc(Device, Parser) ->
     io:format(Device, "~s~n", [formatted_program_desc(Parser)]).
 
 formatted_program_desc(Parser) ->
-    Desc = cli_parser:desc(Parser),
-    prettypr:format(prettypr:text_par(Desc), ?page_width).
+    Pars = split_lines(cli_parser:desc(Parser)),
+    prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
+
+pars_doc(Pars) ->
+    prettypr:par([prettypr:break(text_par_or_empty(Par)) || Par <- Pars]).
+
+text_par_or_empty("") -> prettypr:empty();
+text_par_or_empty(Text) -> prettypr:text_par(Text).
 
 print_options(Device, Parser) ->
     io:format(Device, "Options:~n", []),
@@ -62,16 +67,39 @@ print_arg(Device, Arg) ->
     print_arg_desc(Device, format_arg_desc(Arg)).
 
 format_arg_name(Arg) ->
-    S = cli_arg:short_opt(Arg),
-    L = cli_arg:long_opt(Arg),
-    case {S, L} of
-        {S, L} when is_list(S), is_list(L) ->
-            io_lib:format("  ~s, ~s  ", [S, L]);
-        {S, undefined} ->
-            io_lib:format("  ~s  ", [S]);
-        {undefined, L} ->
-            io_lib:format("  ~s  ", [L])
-    end.
+    Short = cli_arg:short_opt(Arg),
+    Long = cli_arg:long_opt(Arg),
+    Metavar = cli_arg:metavar(Arg),
+    Required = cli_arg:value_required(Arg),
+    io_lib:format(
+      "~s~s~s",
+      [arg_short(Short, Long, Metavar, Required),
+       arg_short_long_delim(Short, Long),
+       arg_long(Long, Metavar, Required)]).
+
+arg_short(undefined, _, _, _) ->
+    "    ";
+arg_short(Short, undefined, undefined, _) ->
+    io_lib:format("  ~s", [Short]);
+arg_short(Short, undefined, Metavar, true) ->
+    io_lib:format("  ~s ~s", [Short, Metavar]);
+arg_short(Short, undefined, Metavar, false) ->
+    io_lib:format("  ~s [~s]", [Short, Metavar]);
+arg_short(Short, _, _, _) ->
+    io_lib:format("  ~s", [Short]).
+
+arg_short_long_delim(undefined, _Long) -> "  ";
+arg_short_long_delim(_Short, undefined) -> "";
+arg_short_long_delim(_Short, _Long) -> ", ".
+
+arg_long(undefined, _, _) ->
+    "";
+arg_long(Long, undefined, _) ->
+    Long;
+arg_long(Long, Metavar, true) ->
+    io_lib:format("~s=~s", [Long, Metavar]);
+arg_long(Long, Metavar, false) ->
+    io_lib:format("~s[=~s]", [Long, Metavar]).
 
 print_arg_name_with_padding(Device, FormattedName) ->
     io:format(Device, FormattedName, []),

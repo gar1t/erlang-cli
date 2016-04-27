@@ -327,6 +327,71 @@ or alternatively with a two-tuple for `option`:
 
     cli:arg(bar, "an option", [{option, "-b, --bar"}])
 
+## Optional vs required values
+
+Positional arguments may be required or not. In one respect, an
+optional positional argument could be considered an option. It may
+however be more natural to use a positional. For example, a missing
+FILE argument is often a signal to read from standard input.
+
+An option may in turn have an optional value. Or, in other words, the
+option will use a sensible default value if one isn't provided by the
+user.
+
+The question: how do we indicate whether or not an argument value is
+required or optional?
+
+One of the problems with 'required' and 'optional' is that the concept
+collides with a similar distinction presented by 'positional argument'
+and 'option'. A positional argument is generally a value that is
+expected from the user, which an option is not.
+
+What we're talking about here is the nature of the _value_ I think.
+
+For a positional argument we should presume that the user _must_
+specify a value, unless otherwise specified. For example, this
+positional argument should be required:
+
+    cli:arg(file, "file to read; use '-' for stdin")
+
+However, if a default is provided, we can use that if the user omits
+the value:
+
+    cli:arg(file, "file to read; use '-' to for stdin (default)",
+            [{default, "-"}])
+
+In the first case, help text would be something like this:
+
+    Usage: myprog FILE
+
+In the second case:
+
+    Usage: myprog [FILE]
+
+What about options? I think the same scheme applies. Here's an option
+that expects a value:
+
+    cli:arg(file, "file to read", [option])
+
+and one whose value may be omitted:
+
+    cli:arg(file, "file to read", [option, {default, "-"}])
+
+The help for the first:
+
+          --file=VALUE         file to read
+
+and for the second:
+
+          --file[=VALUE]       file to read
+
+Flags then become syntactic sugar for bool options with default of
+false. So these are equivalent:
+
+    cli:arg(caps, "print in caps", [flag])
+
+    cli:arg(caps, "print in caps", [option, {type, bool}, {default, false}])
+
 ## Commands and subparsers
 
 NOTE: Support for commands will be added once the base/root
