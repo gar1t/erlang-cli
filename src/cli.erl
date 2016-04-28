@@ -28,7 +28,7 @@ flag(Key, Desc, Opts) ->
     cli_arg:new(Key, Desc, [flag|Opts]).
 
 parse_args(Args, Parser) ->
-    cli_parser:parse_args(Args, Parser).
+    cli_parser3:parse_args(Args, Parser).
 
 print_help(Parser) ->
     cli_help:print_help(Parser).

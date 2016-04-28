@@ -5,6 +5,7 @@
 main(Args) ->
     Parser = sample_parser(),
     case cli:parse_args(Args, Parser) of
+        ok                  -> cli:print_help(Parser);
         {ok, print_help}    -> cli:print_help(Parser);
         {ok, print_version} -> cli:print_version(Parser);
         {ok, Parsed}        -> handle_parsed_args(Parsed);
@@ -26,7 +27,7 @@ sample_parser() ->
        "\n"
        "This program illustrates various capabilities of erlang-cli. It's "
        "sweet. You'll know this when you try it."),
-      [cli:arg(msg, "message to print", [{default, "Hello yo!"}]),
+      [cli:arg(msg, "message to print", [optional]),
        cli:arg(caps, "print message in caps", [{flag, "-C, --caps"}]),
        cli:arg(x, "the X factor", [{flag, "-X"}]),
        cli:arg(y, "the Y factor", [{option, "-Y"}, {default, "123"}]),
@@ -38,7 +39,7 @@ sample_parser() ->
        cli:arg(
          maybe_value_option,
          "you can specify a value here or not - up to you!",
-         [option, {default, "abc"}, {metavar, "MYSTERY"}])
+         [option, arg_optional, {metavar, "MYSTERY"}])
       ]).
 
 handle_parsed_args(Args) ->

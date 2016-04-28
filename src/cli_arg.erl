@@ -2,13 +2,11 @@
 
 -export([new/2, new/3]).
 
--export([name/1, desc/1, arg_type/1, value_type/1, default/1,
-         short_opt/1, long_opt/1, metavar/1, value_required/1]).
+-export([key/1, name/1, desc/1, arg_type/1, value_type/1, value_arg/1,
+         short_opt/1, long_opt/1, metavar/1, arg_required/1]).
 
--record(arg, {key, desc, arg_type, value_type, default,
+-record(arg, {key, desc, arg_type, value_type, value_arg,
               short_opt, long_opt, metavar}).
-
--define(required, '$required').
 
 %% ===================================================================
 %% New
@@ -19,16 +17,16 @@ new(Key, Desc) ->
 
 new(Key, Desc, Opts) ->
     ArgType = arg_type_from_opts(Opts),
-    {ShortOpt, LongOpt} = short_long_from_opts(ArgType, Opts, Key),
     ValueType = value_type_from_opts(Opts),
-    Default = default_from_opts(Opts, ArgType),
+    ValueArg = value_arg_from_opts(Opts),
+    {ShortOpt, LongOpt} = short_long_from_opts(ArgType, Opts, Key),
     Metavar = metavar_from_opts(Opts, ValueType),
     #arg{
        key=Key,
        desc=Desc,
        arg_type=ArgType,
        value_type=ValueType,
-       default=Default,
+       value_arg=ValueArg,
        short_opt=ShortOpt,
        long_opt=LongOpt,
        metavar=Metavar
@@ -90,18 +88,24 @@ default_value_type(Opts) ->
         false -> str
     end. 
 
-default_from_opts(Opts, ArgType) ->
-    Default = fun() -> default_default(Opts, ArgType) end,
-    opt_val(default, Opts, Default).
+value_arg_from_opts(Opts) ->
+    Default = fun() -> default_value_arg(Opts) end,
+    opt_val(value_arg, Opts, Default).
 
-default_default(Opts, ArgType) ->
-    case arg_type_from_opts(Opts) of
-        positional -> ?required;
-        option -> default_for_option_type(ArgType)
+default_value_arg(Opts) ->
+    apply_boolopt_map(
+      [{flag,         none},
+       {optional,     optional},
+       {arg_optional, optional},
+       {'_',          required}],
+      Opts).
+
+apply_boolopt_map([{'_', Result}|_], _Opts) -> Result;
+apply_boolopt_map([{Opt, Result}|Rest], Opts) ->
+    case proplists:get_bool(Opt, Opts) of
+        true -> Result;
+        false -> apply_boolopt_map(Rest, Opts)
     end.
-
-default_for_option_type(bool) -> false;
-default_for_option_type(_)    -> ?required.
 
 metavar_from_opts(Opts, ArgType) ->
     Default = fun() -> default_metavar(ArgType) end,
@@ -114,6 +118,8 @@ default_metavar(_)    -> "VALUE".
 %% Attrs
 %% ===================================================================
 
+key(#arg{key=Key}) -> Key.
+
 name(#arg{key=Key}) ->
     string:to_upper(atom_to_list(Key)).
 
@@ -123,7 +129,7 @@ arg_type(#arg{arg_type=ArgType}) -> ArgType.
 
 value_type(#arg{value_type=ValueType}) -> ValueType.
 
-default(#arg{default=Default}) -> Default.
+value_arg(#arg{value_arg=ValueArg}) -> ValueArg.
 
 short_opt(#arg{short_opt=Short}) -> Short.
 
@@ -131,8 +137,8 @@ long_opt(#arg{long_opt=Long}) -> Long.
 
 metavar(#arg{metavar=Metavar}) -> Metavar.
 
-value_required(#arg{default=?required}) -> true;
-value_required(_) -> false.
+arg_required(#arg{value_arg=required}) -> true;
+arg_required(_) -> false.
 
 %% ===================================================================
 %% Helpers

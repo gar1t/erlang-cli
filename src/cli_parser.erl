@@ -1,6 +1,7 @@
 -module(cli_parser).
 
--export([new/4, prog/1, version/1, desc/1, args/1, options/1]).
+-export([new/4, prog/1, version/1, desc/1,
+         args/1, options/1, positional/1]).
 
 -export([parse_args/2]).
 
@@ -28,6 +29,9 @@ args(#parser{args=Args}) -> Args.
 
 options(Parser) ->
     [Arg || Arg <- args(Parser), cli_arg:arg_type(Arg) == option].
+
+positional(Parser) ->
+    [Arg || Arg <- args(Parser), cli_arg:arg_type(Arg) == positional].
 
 %% ===================================================================
 %% Parse args

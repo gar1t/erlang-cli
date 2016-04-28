@@ -33,7 +33,7 @@ print_arg_synopsis(_Device, []) ->
 
 maybe_print_positional(positional, Device, Arg) ->
     print_sp(Device),
-    print_positional(Device, cli_arg:name(Arg), cli_arg:value_required(Arg));
+    print_positional(Device, cli_arg:name(Arg), cli_arg:arg_required(Arg));
 maybe_print_positional(option, _Device, _Arg) ->
     ok.
 
@@ -67,36 +67,35 @@ print_arg(Device, Arg) ->
 format_arg_name(Arg) ->
     Short = cli_arg:short_opt(Arg),
     Long = cli_arg:long_opt(Arg),
-    Metavar = cli_arg:metavar(Arg),
-    Required = cli_arg:value_required(Arg),
+    Meta = {cli_arg:value_arg(Arg), cli_arg:metavar(Arg)},
     io_lib:format(
       "~s~s~s",
-      [arg_short(Short, Long, Metavar, Required),
+      [arg_short(Short, Long, Meta),
        arg_short_long_delim(Short, Long),
-       arg_long(Long, Metavar, Required)]).
+       arg_long(Long, Meta)]).
 
-arg_short(undefined, _, _, _) ->
+arg_short(undefined, _, _) ->
     "    ";
-arg_short(Short, undefined, undefined, _) ->
+arg_short(Short, undefined, {none, _}) ->
     io_lib:format("  ~s", [Short]);
-arg_short(Short, undefined, Metavar, true) ->
+arg_short(Short, undefined, {required, Metavar}) ->
     io_lib:format("  ~s ~s", [Short, Metavar]);
-arg_short(Short, undefined, Metavar, false) ->
+arg_short(Short, undefined, {optional, Metavar}) ->
     io_lib:format("  ~s [~s]", [Short, Metavar]);
-arg_short(Short, _, _, _) ->
+arg_short(Short, _, _) ->
     io_lib:format("  ~s", [Short]).
 
 arg_short_long_delim(undefined, _Long) -> "  ";
 arg_short_long_delim(_Short, undefined) -> "";
 arg_short_long_delim(_Short, _Long) -> ", ".
 
-arg_long(undefined, _, _) ->
+arg_long(undefined, _) ->
     "";
-arg_long(Long, undefined, _) ->
+arg_long(Long, {none, _}) ->
     Long;
-arg_long(Long, Metavar, true) ->
+arg_long(Long, {required, Metavar}) ->
     io_lib:format("~s=~s", [Long, Metavar]);
-arg_long(Long, Metavar, false) ->
+arg_long(Long, {optional, Metavar}) ->
     io_lib:format("~s[=~s]", [Long, Metavar]).
 
 print_arg_name_with_padding(Device, FormattedName) ->

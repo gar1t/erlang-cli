@@ -392,6 +392,20 @@ false. So these are equivalent:
 
     cli:arg(caps, "print in caps", [option, {type, bool}, {default, false}])
 
+UPDATE: This approach isn't going to work for obvious reasons. Options
+may not be specified and therefore a default value suggests the value
+for the arg when the option is not provided. It only works for
+positional arguments.
+
+"Value argument" can be used however. These values apply:
+
+- optional
+- required
+- none
+
+This is similar to `narg` from Python's argparser, but applies to zero
+or one arguments rather than zero or more.
+
 ## Commands and subparsers
 
 NOTE: Support for commands will be added once the base/root
@@ -468,3 +482,8 @@ character or digit
 **Long Form Option**
 : An option consisting of two leading hyphens followed by one or more
 characters or digits
+
+# To Do
+
+- cli_arg:name/1 is suspect - I think this is just used for help text,
+which is wrong - should be more generally useful than just for UI
