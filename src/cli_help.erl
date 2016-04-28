@@ -3,7 +3,7 @@
 -export([print_help/1, print_help/2, print_version/1, print_version/2]).
 
 -define(page_width, 79).
--define(arg_desc_col, 30).
+-define(opt_desc_col, 30).
 
 %% ===================================================================
 %% Print help
@@ -13,34 +13,24 @@ print_help(Parser) ->
     print_help(standard_error, Parser).
 
 print_help(Device, Parser) ->
-    print_usage_line(Device, Parser),
+    print_usage(Device, Parser),
     print_program_desc(Device, Parser),
     print_options(Device, Parser).
 
-print_usage_line(Device, Parser) ->
-    print_prog_and_options(Device, Parser),
-    print_arg_synopsis(Device, cli_parser:args(Parser)),
-    print_lf(Device).
+print_usage(Device, Parser) ->
+    print_usage_lines(Device, usage_lines(Parser), first).
 
-print_prog_and_options(Device, Parser) ->
-    io:format(Device, "Usage: ~s [OPTION]...", [cli_parser:prog(Parser)]).
+usage_lines(Parser) ->
+    split_lines(cli_parser:usage(Parser)).
 
-print_arg_synopsis(Device, [Arg|Rest]) ->
-    maybe_print_positional(cli_arg:arg_type(Arg), Device, Arg),
-    print_arg_synopsis(Device, Rest);
-print_arg_synopsis(_Device, []) ->
+print_usage_lines(Device, [Line|Rest], LineType) ->
+    io:format(Device, "~s~s~n", [usage_line_prefix(LineType), Line]),
+    print_usage_lines(Device, Rest, more);
+print_usage_lines(_Device, [], _First) ->
     ok.
 
-maybe_print_positional(positional, Device, Arg) ->
-    print_sp(Device),
-    print_positional(Device, cli_arg:name(Arg), cli_arg:arg_required(Arg));
-maybe_print_positional(option, _Device, _Arg) ->
-    ok.
-
-print_positional(Device, Name, true=_Required) ->
-    io:format(Device, "~s", [Name]);
-print_positional(Device, Name, false=_Required) ->
-    io:format(Device, "[~s]", [Name]).
+usage_line_prefix(first) -> "Usage: ";
+usage_line_prefix(more)  -> "   or: ".
 
 print_program_desc(Device, Parser) ->
     io:format(Device, "~s~n", [formatted_program_desc(Parser)]).
@@ -51,90 +41,100 @@ formatted_program_desc(Parser) ->
 
 print_options(Device, Parser) ->
     io:format(Device, "Options:~n", []),
-    print_parser_args(Device, cli_parser:options(Parser)),
-    print_help_and_version_options(Device, Parser).
+    print_parser_opts(Device, cli_parser:options(Parser)),
+    print_help_and_version_opts(Device, Parser).
 
-print_parser_args(Device, [Arg|Rest]) ->
-    print_arg(Device, Arg),
-    print_parser_args(Device, Rest);
-print_parser_args(_Device, []) ->
+print_parser_opts(Device, [Opt|Rest]) ->
+    print_opt(Device, Opt),
+    print_parser_opts(Device, Rest);
+print_parser_opts(_Device, []) ->
     ok.
 
-print_arg(Device, Arg) ->
-    print_arg_name_with_padding(Device, format_arg_name(Arg)),
-    print_arg_desc(Device, format_arg_desc(Arg)).
+print_opt(Device, Opt) ->
+    print_opt_name_with_padding(Device, format_opt_name(Opt)),
+    print_opt_desc(Device, format_opt_desc(Opt)).
 
-format_arg_name(Arg) ->
-    Short = cli_arg:short_opt(Arg),
-    Long = cli_arg:long_opt(Arg),
-    Meta = {cli_arg:value_arg(Arg), cli_arg:metavar(Arg)},
+format_opt_name(Opt) ->
+    Short = cli_opt:short(Opt),
+    Long = cli_opt:long(Opt),
+    Meta = {cli_opt:has_arg(Opt), cli_opt:metavar(Opt)},
     io_lib:format(
       "~s~s~s",
-      [arg_short(Short, Long, Meta),
-       arg_short_long_delim(Short, Long),
-       arg_long(Long, Meta)]).
+      [opt_short(Short, Long, Meta),
+       opt_short_long_delim(Short, Long),
+       opt_long(Long, Meta)]).
 
-arg_short(undefined, _, _) ->
+opt_short(undefined, _, _) ->
     "    ";
-arg_short(Short, undefined, {none, _}) ->
+opt_short(Short, undefined, {no, _}) ->
     io_lib:format("  ~s", [Short]);
-arg_short(Short, undefined, {required, Metavar}) ->
+opt_short(Short, undefined, {yes, Metavar}) ->
     io_lib:format("  ~s ~s", [Short, Metavar]);
-arg_short(Short, undefined, {optional, Metavar}) ->
+opt_short(Short, undefined, {optional, Metavar}) ->
     io_lib:format("  ~s [~s]", [Short, Metavar]);
-arg_short(Short, _, _) ->
+opt_short(Short, _, _) ->
     io_lib:format("  ~s", [Short]).
 
-arg_short_long_delim(undefined, _Long) -> "  ";
-arg_short_long_delim(_Short, undefined) -> "";
-arg_short_long_delim(_Short, _Long) -> ", ".
+opt_short_long_delim(undefined, _Long) -> "  ";
+opt_short_long_delim(_Short, undefined) -> "";
+opt_short_long_delim(_Short, _Long) -> ", ".
 
-arg_long(undefined, _) ->
+opt_long(undefined, _) ->
     "";
-arg_long(Long, {none, _}) ->
+opt_long(Long, {no, _}) ->
     Long;
-arg_long(Long, {required, Metavar}) ->
+opt_long(Long, {yes, Metavar}) ->
     io_lib:format("~s=~s", [Long, Metavar]);
-arg_long(Long, {optional, Metavar}) ->
+opt_long(Long, {optional, Metavar}) ->
     io_lib:format("~s[=~s]", [Long, Metavar]).
 
-print_arg_name_with_padding(Device, FormattedName) ->
+print_opt_name_with_padding(Device, FormattedName) ->
     io:format(Device, FormattedName, []),
-    pad_to_arg_desc(Device, FormattedName).
+    pad_to_opt_desc(Device, FormattedName).
 
-pad_to_arg_desc(Device, FormattedName) ->
-    case ?arg_desc_col - iolist_size(FormattedName) of
+pad_to_opt_desc(Device, FormattedName) ->
+    case ?opt_desc_col - iolist_size(FormattedName) of
         Line1Padding when Line1Padding >= 0 ->
             io:format(Device, string:copies(" ", Line1Padding), []);
         _ ->
             io:format(Device, "~n", []),
-            io:format(Device, string:copies(" ", ?arg_desc_col), [])
+            io:format(Device, string:copies(" ", ?opt_desc_col), [])
     end.
 
-format_arg_desc(Arg) ->
-    Desc = cli_arg:desc(Arg),
-    Width = ?page_width - ?arg_desc_col,
+format_opt_desc(Opt) ->
+    Desc = cli_opt:desc(Opt),
+    Width = ?page_width - ?opt_desc_col,
     prettypr:format(prettypr:text_par(Desc), Width).
 
-print_arg_desc(Device, Desc) ->
+print_opt_desc(Device, Desc) ->
     [Line1|Rest] = split_lines(Desc),
     io:format(Device, Line1, []),
     io:format(Device, "~n", []),
-    print_indented_arg_lines(Device, Rest).
+    print_indented_opt_lines(Device, Rest).
 
-print_indented_arg_lines(Device, [Line|Rest]) ->
-    io:format(Device, string:copies(" ", ?arg_desc_col), []),
+print_indented_opt_lines(Device, [Line|Rest]) ->
+    io:format(Device, string:copies(" ", ?opt_desc_col), []),
     io:format(Device, Line, []),
     io:format(Device, "~n", []),
-    print_indented_arg_lines(Device, Rest);
-print_indented_arg_lines(_Device, []) ->
+    print_indented_opt_lines(Device, Rest);
+print_indented_opt_lines(_Device, []) ->
     ok.
 
-print_help_and_version_options(Device, _Parser) ->
+print_help_and_version_opts(Device, Parser) ->
+    print_help_opt(Device),
+    maybe_print_version_opt(has_version(Parser), Device).
+
+print_help_opt(Device) ->
     io:format(
-      Device, "      --help     print this help and exit~n", []),
+      Device, "      --help     print this help and exit~n", []).
+
+has_version(Parser) -> cli_parser:version(Parser) /= undefined.
+
+maybe_print_version_opt(true, Device) ->
     io:format(
-      Device, "      --version  print version information and exit~n", []).
+      Device, "      --version  print version information and exit~n", []);
+maybe_print_version_opt(false, _) ->
+    ok.
 
 %% ===================================================================
 %% Print version
@@ -144,7 +144,6 @@ print_version(Parser) ->
     print_version(standard_error, Parser).
 
 print_version(Device, Parser) ->    
-    io:format(Device, "~s ", [cli_parser:prog(Parser)]),
     io:format(Device, formatted_version(Parser), []).
 
 formatted_version(Parser) ->
@@ -154,12 +153,6 @@ formatted_version(Parser) ->
 %% ===================================================================
 %% Helpers
 %% ===================================================================
-
-print_sp(Device) ->
-    io:format(Device, " ", []).
-
-print_lf(Device) ->
-    io:format(Device, "~n", []).
 
 split_lines(Str) ->
     re:split(Str, "\n", [{return, list}]).

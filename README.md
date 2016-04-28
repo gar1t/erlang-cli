@@ -456,8 +456,8 @@ and indicates that a sub-parser should be used handle subsequent
 arguments
 
 **Option**
-: An argument consisting of a leading hyphen character followed by
-letters or digits
+: An argument consisting of one or two leading hyphen characters
+followed by letters or digits
 
 **Option Argument**
 : An argument immediately following an option
@@ -485,5 +485,6 @@ characters or digits
 
 # To Do
 
-- cli_arg:name/1 is suspect - I think this is just used for help text,
-which is wrong - should be more generally useful than just for UI
+- `--help` and `--version` options are hard coded, and this isn't
+  good - provide a flag associated with the parser to disable
+  either/both.

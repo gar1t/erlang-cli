@@ -1,31 +1,26 @@
 -module(cli).
 
--export([parser/4,
-         arg/2, arg/3,
-         option/2, option/3,
-         flag/2, flag/3,
-         parse_args/2, print_help/1, print_version/1]).
+-export([parser/1, parser/4, parse_args/2, print_help/1, print_version/1]).
 
-parser(Program, Version, Desc, Args) ->
-    cli_parser:new(Program, Version, Desc, Args).
+parser(Config) ->
+    cli_parser:new(Config).
 
-arg(Key, Desc) ->
-    cli_arg:new(Key, Desc).
+parser(Usage, Desc, OptionSpecs, ParserConfig) ->
+    parser(
+      [{usage, Usage},
+       {desc, Desc},
+       {options, parser_opts(OptionSpecs)}
+       |ParserConfig]).
 
-arg(Key, Desc, Opts) ->
-    cli_arg:new(Key, Desc, Opts).
+parser_opts(Specs) ->
+    [parser_opt(Spec) || Spec <- Specs].
 
-option(Key, Desc) ->
-    option(Key, Desc, []).
-
-option(Key, Desc, Opts) ->
-    cli_arg:new(Key, Desc, [option|Opts]).
-
-flag(Key, Desc) ->
-    flag(Key, Desc, []).
-
-flag(Key, Desc, Opts) ->
-    cli_arg:new(Key, Desc, [flag|Opts]).
+parser_opt({Key, Name}) ->
+    cli_opt:new(Key, [{name, Name}]);
+parser_opt({Key, Name, Desc}) ->
+    cli_opt:new(Key, [{name, Name}, {desc, Desc}]);
+parser_opt({Key, Name, Desc, Opts}) ->
+    cli_opt:new(Key, [{name, Name}, {desc, Desc}|Opts]).
 
 parse_args(Args, Parser) ->
     cli_parser3:parse_args(Args, Parser).
