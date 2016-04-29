@@ -2,9 +2,9 @@
 
 -export([new/2]).
 
--export([key/1, desc/1, type/1, has_arg/1, short/1, long/1, metavar/1]).
+-export([key/1, desc/1, has_arg/1, short/1, long/1, metavar/1]).
 
--record(opt, {key, desc, type, has_arg, short, long, metavar}).
+-record(opt, {key, desc, has_arg, short, long, metavar}).
 
 %% ===================================================================
 %% New
@@ -12,14 +12,12 @@
 
 new(Key, Opts) ->
     Desc = desc_from_opts(Opts),
-    Type = type_from_opts(Opts),
     HasArg = has_arg_from_opts(Opts),
     {Short, Long} = short_long_from_opts(Opts, Key),
-    Metavar = metavar_from_opts(Opts, Type),
+    Metavar = metavar_from_opts(Opts),
     #opt{
        key=Key,
        desc=Desc,
-       type=Type,
        has_arg=HasArg,
        short=Short,
        long=Long,
@@ -28,16 +26,6 @@ new(Key, Opts) ->
 
 desc_from_opts(Opts) ->
     proplists:get_value(desc, Opts, "").
-
-type_from_opts(Opts) ->
-    Default = fun() -> default_type(Opts) end,
-    opt_val(type, Opts, Default).
-
-default_type(Opts) ->
-    apply_boolopt_map(
-      [{flag, bool},
-       {'_',  str}],
-      Opts).
 
 short_long_from_opts(Opts, Key) ->
     short_long_from_name(name_from_opts(Opts, Key)).
@@ -52,9 +40,9 @@ long_opt_from_key(Key) ->
 short_long_from_name(Name) ->
     Pattern = "^(?:(-.))?(?:, )?(?:(--.+))?$",
     case re:run(Name, Pattern, [{capture, all_but_first, list}]) of
-        {match, ["", Long]} -> {undefined, Long};
+        {match, ["", Long]}    -> {undefined, Long};
         {match, [Short, Long]} -> {Short, Long};
-        {match, [Short]} -> {Short, undefined};
+        {match, [Short]}       -> {Short, undefined};
         nomatch -> error({bad_option_name, Name})
     end.
 
@@ -70,12 +58,16 @@ default_has_arg(Opts) ->
        {'_',          yes}],
       Opts).
 
-metavar_from_opts(Opts, Type) ->
-    Default = fun() -> default_metavar(Type) end,
+metavar_from_opts(Opts) ->
+    Default = fun() -> default_metavar(Opts) end,
     opt_val(metavar, Opts, Default).
 
-default_metavar(bool) -> undefined;
-default_metavar(_)    -> "VALUE".
+default_metavar(Opts) ->
+    apply_boolopt_map(
+      [{flag,   undefined},
+       {no_arg, undefined},
+       {'_',    "VALUE"}],
+      Opts).
 
 %% ===================================================================
 %% Attrs
@@ -84,8 +76,6 @@ default_metavar(_)    -> "VALUE".
 key(#opt{key=Key}) -> Key.
 
 desc(#opt{desc=Desc}) -> Desc.
-
-type(#opt{type=Type}) -> Type.
 
 has_arg(#opt{has_arg=HasArg}) -> HasArg.
 
@@ -109,7 +99,7 @@ opt_val(Key, Opts, Default) ->
 apply_boolopt_map([{'_', Result}|_], _Opts) -> Result;
 apply_boolopt_map([{Opt, Result}|Rest], Opts) ->
     case proplists:get_bool(Opt, Opts) of
-        true -> Result;
+        true  -> Result;
         false -> apply_boolopt_map(Rest, Opts)
     end.
 

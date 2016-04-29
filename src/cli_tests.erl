@@ -5,87 +5,120 @@
 -export([run/0]).
 
 run() ->
-    test_parser_attrs(),
-    test_arg_facade(),
+    test_cli_opt(),
     test_parse_args().
 
-test_parser_attrs() ->
-    io:format("parser_attrs: "),
+test_cli_opt() ->
+    io:format("cli_opt: "),
 
-    %% Create parser
+    Opt = fun(Key, Opts) -> opt_props(cli_opt:new(Key, Opts)) end,
 
-    Foo = cli:arg(foo, "foo arg"),
-    Bar = cli:arg(bar, "bar flag", [flag]),
-    P = cli:parser("myprog", "1", "Sample program", [Foo, Bar]),
+    #{key      := foo,
+      desc     := "",
+      has_arg  := yes,
+      short    := undefined,
+      long     := "--foo",
+      metavar  := "VALUE"} = Opt(foo, []),
 
-    %% Parser attrs
+    #{desc := "foo option"} = Opt(foo, [{desc, "foo option"}]),
 
-    "myprog" = cli_parser:prog(P),
-    "1" = cli_parser:version(P),
-    "Sample program" = cli_parser:desc(P),
-    [Foo, Bar] = cli_parser:args(P),
-    [Bar] = cli_parser:options(P),
+    #{has_arg := yes}      = Opt(bar, []), 
+    #{has_arg := no}       = Opt(bar, [flag]), 
+    #{has_arg := no}       = Opt(bar, [no_arg]), 
+    #{has_arg := optional} = Opt(bar, [optional_arg]), 
+
+    #{short := undefined, long := "--baz"}   = Opt(baz, []),
+    #{short := "-Z",      long := "--baz"}   = Opt(baz, [{name, "-Z, --baz"}]),
+    #{short := "-Z",      long := undefined} = Opt(baz, [{name, "-Z"}]),
+    #{short := undefined, long := "--baz"}   = Opt(baz, [{name, "--baz"}]),
+
+    #{metavar := "VALUE"}   = Opt(foo, []),
+    #{metavar := undefined} = Opt(foo, [flag]),
+    #{metavar := undefined} = Opt(foo, [no_arg]),
+    #{metavar := "FOO"}     = Opt(foo, [{metavar, "FOO"}]),
 
     io:format("OK~n").
 
-test_arg_facade() ->
-    io:format("arg_facade: "),
-
-    %% Positional w/defaults
-
-    P1 = cli:arg(pos_1, "positional arg 1"),
-    "POS_1" = cli_arg:name(P1),
-    "positional arg 1" = cli_arg:desc(P1),
-    positional = cli_arg:arg_type(P1),
-    str = cli_arg:value_type(P1),
-    true = cli_arg:arg_required(P1),
-
-    %% Option w/defaults
-
-    O1 = cli:option(opt_1, "option 1"),
-    "OPT_1" = cli_arg:name(O1),
-    "option 1" = cli_arg:desc(O1),
-    option = cli_arg:arg_type(O1),
-    str = cli_arg:value_type(O1),
-    true = cli_arg:arg_required(O1),
-
-    %% Flag w/defaults
-
-    F1 = cli:flag(flag_1, "flag 1"),
-    "FLAG_1" = cli_arg:name(F1),
-    "flag 1" = cli_arg:desc(F1),
-    bool = cli_arg:value_type(F1),
-    false = cli_arg:arg_required(F1),
-    
-    io:format("OK~n").
+opt_props(O) ->
+    #{key     => cli_opt:key(O),
+      desc    => cli_opt:desc(O),
+      has_arg => cli_opt:has_arg(O),
+      short   => cli_opt:short(O),
+      long    => cli_opt:long(O),
+      metavar => cli_opt:metavar(O)}.
 
 test_parse_args() ->
     io:format("parse_args: "),
 
-    Parser = fun(Args) -> cli:parser("p", "", "", Args) end,
-    Arg = fun(Key, Opts) -> cli:arg(Key, "", Opts) end,
+    P = fun(Args, OptSpec) -> parse_args(Args, OptSpec) end,
 
-    Color = Arg(color, []),
+    %% Null parser (NP)
+    NP = fun(Args) -> P(Args, []) end,
+    {ok, {[], []}} = NP([]),
 
-    %% Single positional arg
+    %% Unspecified options
+    {ok, {[], []}} = P([], [{foo, "-F"}, {bar, "-B"}]),
 
-    P1 = Parser([Color]),
+    %% Positional args with single foo option (Foo)
+    Foo = fun(Args) -> P(Args, [{foo, "-F"}]) end,
+    {ok, {[],             ["foo", "bar"]}} = Foo(["foo", "bar"]),
+    {ok, {[{foo, "foo"}], ["bar"]}}        = Foo(["-F", "foo", "bar"]),
+    {ok, {[],             ["-F", "foo"]}}  = Foo(["--", "-F", "foo"]),
 
-    xxx = cli:parse_args(["red"], P1),
+    %% Option with required arg (Req)
+    Req = fun(Args) -> P(Args, [{foo, "-F, --foo"}]) end,
+    {error, {missing_arg, foo, "--foo"}} = Req(["--foo"]),
+    {ok, {[{foo, "123"}], []}}           = Req(["--foo", "123"]),
+    {ok, {[{foo, "123"}], []}}           = Req(["--foo=123"]),
+    {error, {missing_arg, foo, "-F"}}    = Req(["-F"]),
+    {ok, {[{foo, "123"}], []}}           = Req(["-F", "123"]),
+    {ok, {[{foo, "123"}], []}}           = Req(["-F123"]),
 
-    %% {ok, [{color, "red"}]}        = cli:parse_args(["red"], P1),
-    %% {ok, [{color, undefined}]}    = cli:parse_args([], P1),
-    %% {error, {unknown_arg, "--a"}} = cli:parse_args(["--a", "blue"], P1),
-    %% %% FIX:
-    %% {error, {unknown_arg, "-agreen"}}  = cli:parse_args(["-agreen"], P1),
+    %% Option with no arg (NoArg)
+    NoArg = fun(Args) -> P(Args, [{foo, "-F, --foo", "", [no_arg]}]) end,
+    {ok, {[foo], []}}                       = NoArg(["--foo"]),
+    {ok, {[foo], ["123"]}}                  = NoArg(["--foo", "123"]),
+    {error, {unexpected_arg, foo, "--foo"}} = NoArg(["--foo=123"]),
+    {ok, {[foo], []}}                       = NoArg(["-F"]),
+    {ok, {[foo], ["123"]}}                  = NoArg(["-F", "123"]),
+    {error, {unknown_opt, "-1"}}            = NoArg(["-F123"]),
 
-    %% Bold = Arg(bold, [{flag, "-B, --bold"}]),
-    %% _P2 = Parser([Bold, Color]),
+    %% Option with optional arg (Opt)
+    Opt = fun(Args) -> P(Args, [{foo, "-F, --foo", "", [optional_arg]}]) end,
+    {ok, {[{foo, ""}],    []}} = Opt(["--foo"]),
+    {ok, {[{foo, "123"}], []}} = Opt(["--foo", "123"]),
+    {ok, {[{foo, "123"}], []}} = Opt(["--foo=123"]),
+    {ok, {[{foo, ""}],    []}} = Opt(["-F"]),
+    {ok, {[{foo, "123"}], []}} = Opt(["-F", "123"]),
+    {ok, {[{foo, "123"}], []}} = Opt(["-F123"]),
 
-    %% %% Edge cases
+    %% Special long options (help and version)
+    {ok, print_help}             = NP(["--help"]),
+    {ok, print_version}          = NP(["--version"]),
+    {ok, print_help}             = NP(["--help", "-F"]),
+    {ok, print_version}          = NP(["--version", "-F"]),
+    {error, {unknown_opt, "-F"}} = NP(["-F", "--help"]),
+    {error, {unknown_opt, "-F"}} = NP(["-F", "--version"]),
 
-    %% {ok, []} = cli:parse_args(["--"], Parser([])),
-    %% {ok, [{color, "red"}]} = cli:parse_args(["--", "red"], Parser([Color])),
-    %% {ok, [{color, "red"}]} = cli:parse_args(["red", "--"], Parser([Color])),
+    %% Kitchen sink (KS)
+    KSOpts =
+        [{flag, "-F, --flag", "", [flag]},
+         {required, "--req", "", []},
+         {optional, "-O", "", [optional_arg]}],
+    KS = fun(Args) -> P(Args, KSOpts) end,
+    {ok, {[flag, {required, "abc"}, {optional, "arg1"}], ["arg2"]}} =
+        KS(["-F", "--req", "abc", "-O", "arg1", "arg2"]),
+    {error, {missing_arg, required, "--req"}} =
+        KS(["-F", "--req", "-O", "arg1", "arg2"]),
+    {ok, {[flag, {required, "abc"}, {optional, ""}], ["arg1", "arg2"]}} =
+        KS(["-F", "--req", "abc", "-O", "--", "arg1", "arg2"]),
+
+    %% Multiple values
+    {ok, {[flag, flag, flag, {optional, "foo"}, {optional, "bar"}], []}} = 
+        KS(["-FFF", "-Ofoo", "-Obar"]),
 
     io:format("OK~n").
+
+parse_args(Args, OptSpec) ->
+    Parser = cli:parser("p", "", "", OptSpec),
+    cli:parse_args(Args, Parser).

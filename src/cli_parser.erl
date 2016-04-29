@@ -129,6 +129,8 @@ opt([{long, Name}|_], #lo{l=Name, arg=yes, k=Key}) ->
 %% Long option - takes no arg
 opt([{long, Name}|Rest], #lo{l=Name, arg=no, k=Key}) ->
     {ok, {{Key, undefined}, Rest}};
+opt([{long, Name, _Val}|_], #lo{l=Name, arg=no, k=Key}) ->
+    {error, {unexpected_arg, Key, opt_token_str({long, Name})}};
 %% Long option - might have arg
 opt([{long, Name, Val}|Rest], #lo{l=Name, arg=opt, k=Key}) ->
     {ok, {{Key, Val}, Rest}};
@@ -185,4 +187,5 @@ finalize_parsed_acc([], Opts, PosArgs) ->
     {ok, {lists:reverse(Opts), lists:reverse(PosArgs)}}.
 
 opt_token_str({long, Name})  -> "--" ++ Name;
-opt_token_str({short, Name}) -> "-" ++ Name.
+opt_token_str({short, Name}) -> "-" ++ Name;
+opt_token_str({short, Name, _}) -> "-" ++ Name.

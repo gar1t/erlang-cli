@@ -10,7 +10,7 @@ main(Args) ->
         {ok, print_help}    -> cli:print_help(Parser);
         {ok, print_version} -> cli:print_version(Parser);
         {ok, Parsed}        -> handle_parsed_args(Parsed);
-        {error, Err}        -> cli:print_error(Err, Parser)
+        {error, Err}        -> cli:print_error_and_halt(Err, Parser)
     end.
 
 sample_parser() ->
@@ -22,9 +22,9 @@ sample_parser() ->
       "This program illustrates various capabilities of erlang-cli. It's "
       "sweet. You'll know this when you try it.",
       [{caps, "-C, --caps", "print message in caps", [flag]},
-       {x, "-X", "the X factor", [flag]},
-       {y, "-Y", "the Y factor", [{metavar, "YFACTOR"}]},
-       {z, "-Z, --zed", "the Z factor", [no_arg]},
+       {x,    "-X",         "the X factor",          [flag]},
+       {y,    "-Y",         "the Y factor",          [{metavar, "FACTOR"}]},
+       {z,    "-Z, --zed",  "the Z factor",          [no_arg]},
        {some_long_option, "-L, --super-long-option",
         "this is some really long option - not sure what to make "
         "of it really; super cool, or super weird?"},
@@ -45,5 +45,6 @@ sample_parser() ->
        }
       ]).
 
-handle_parsed_args(Args) ->
-    io:format("TODO: handle args: ~p~n", [Args]).
+handle_parsed_args({Opts, Args}) ->
+    io:format("Options: ~p~n", [Opts]),
+    io:format("Args:    ~p~n", [Args]).

@@ -171,7 +171,9 @@ print_error(Device, Err, Parser) ->
 format_error_msg({unknown_opt, Name}) ->
     io_lib:format("unrecognized option '~s'", [Name]);
 format_error_msg({missing_arg, _Key, Name}) ->
-    io_lib:format("option '~s' requires an argument", [Name]).
+    io_lib:format("option '~s' requires an argument", [Name]);
+format_error_msg({unexpected_arg, _Key, Name}) ->
+    io_lib:format("option '~s' doesn't allow an argument", [Name]).
 
 %% ===================================================================
 %% Helpers
