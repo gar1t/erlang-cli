@@ -406,6 +406,13 @@ positional arguments.
 This is similar to `narg` from Python's argparser, but applies to zero
 or one arguments rather than zero or more.
 
+## Data validation
+
+I'm inclined to not validate or otherwise interpret values and simply
+parsed the arguments and provide values as strings. If an option
+doesn't have a value, it appears in the list of options without a
+value (as is the standard for Erlang proplists).
+
 ## Commands and subparsers
 
 NOTE: Support for commands will be added once the base/root

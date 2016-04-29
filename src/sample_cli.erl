@@ -2,20 +2,21 @@
 
 -export([main/1]).
 
-main(_Args) ->
+main(Args) ->
+    %cli_debug:trace_function(cli_parser, opt),
     Parser = sample_parser(),
-    cli:print_version(Parser).
-    %% case cli:parse_args(Args, Parser) of
-    %%     ok                  -> cli:print_help(Parser);
-    %%     {ok, print_help}    -> cli:print_help(Parser);
-    %%     {ok, print_version} -> cli:print_version(Parser);
-    %%     {ok, Parsed}        -> handle_parsed_args(Parsed);
-    %%     {error, Err}        -> cli:print_error(Err)
-    %% end.
+    case cli:parse_args(Args, Parser) of
+        ok                  -> cli:print_help(Parser);
+        {ok, print_help}    -> cli:print_help(Parser);
+        {ok, print_version} -> cli:print_version(Parser);
+        {ok, Parsed}        -> handle_parsed_args(Parsed);
+        {error, Err}        -> cli:print_error(Err, Parser)
+    end.
 
 sample_parser() ->
     cli:parser(
-      "sample [OPTION]... [MSG]",
+      "sample",
+      "[OPTION]... [MSG]\n[OPTION]... WHOOPPEEE",
       "A sample CLI using erlang-cli.\n"
       "\n"
       "This program illustrates various capabilities of erlang-cli. It's "
@@ -27,7 +28,7 @@ sample_parser() ->
        {some_long_option, "-L, --super-long-option",
         "this is some really long option - not sure what to make "
         "of it really; super cool, or super weird?"},
-       {maybe_value_option, "--maybe-value",
+       {maybe_value_option, "-M, --maybe-value",
         "you can specify a value here or not - up to you!",
         [optional_arg, {metavar, "MYSTERY"}]
        }
@@ -44,5 +45,5 @@ sample_parser() ->
        }
       ]).
 
-%% handle_parsed_args(Args) ->
-%%     io:format("TODO: handle args: ~p~n", [Args]).
+handle_parsed_args(Args) ->
+    io:format("TODO: handle args: ~p~n", [Args]).

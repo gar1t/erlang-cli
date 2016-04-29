@@ -1,6 +1,8 @@
 -module(cli_help).
 
--export([print_help/1, print_help/2, print_version/1, print_version/2]).
+-export([print_help/1, print_help/2,
+         print_version/1, print_version/2,
+         print_error/2, print_error/3]).
 
 -define(page_width, 79).
 -define(opt_desc_col, 30).
@@ -18,19 +20,22 @@ print_help(Device, Parser) ->
     print_options(Device, Parser).
 
 print_usage(Device, Parser) ->
-    print_usage_lines(Device, usage_lines(Parser), first).
+    UsageLines = usage_lines(Parser),
+    Prog = cli_parser:prog(Parser),
+    print_usage_lines(Device, UsageLines, Prog, first).
 
 usage_lines(Parser) ->
     split_lines(cli_parser:usage(Parser)).
 
-print_usage_lines(Device, [Line|Rest], LineType) ->
-    io:format(Device, "~s~s~n", [usage_line_prefix(LineType), Line]),
-    print_usage_lines(Device, Rest, more);
-print_usage_lines(_Device, [], _First) ->
+print_usage_lines(Device, [Line|Rest], Prog, LineType) ->
+    Prefix = usage_line_prefix(LineType),
+    io:format(Device, "~s ~s ~s~n", [Prefix, Prog, Line]),
+    print_usage_lines(Device, Rest, Prog, more);
+print_usage_lines(_Device, [], _Prog, _LineType) ->
     ok.
 
-usage_line_prefix(first) -> "Usage: ";
-usage_line_prefix(more)  -> "   or: ".
+usage_line_prefix(first) -> "Usage:";
+usage_line_prefix(more)  -> "   or:".
 
 print_program_desc(Device, Parser) ->
     io:format(Device, "~s~n", [formatted_program_desc(Parser)]).
@@ -149,6 +154,24 @@ print_version(Device, Parser) ->
 formatted_version(Parser) ->
     Pars = split_lines(cli_parser:version(Parser)),
     prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
+
+%% ===================================================================
+%% Print error
+%% ===================================================================
+
+print_error(Err, Parser) ->
+    print_error(standard_error, Err, Parser).
+
+print_error(Device, Err, Parser) ->
+    Prog = cli_parser:prog(Parser),
+    ErrMsg = format_error_msg(Err),
+    io:format(Device, "~s: ~s~n", [Prog, ErrMsg]),
+    io:format(Device, "Try '~s --help' for more information.~n", [Prog]).
+
+format_error_msg({unknown_opt, Name}) ->
+    io_lib:format("unrecognized option '~s'", [Name]);
+format_error_msg({missing_arg, _Key, Name}) ->
+    io_lib:format("option '~s' requires an argument", [Name]).
 
 %% ===================================================================
 %% Helpers
