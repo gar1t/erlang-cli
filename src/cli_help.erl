@@ -18,11 +18,10 @@ print_help(Parser) ->
 print_help(Device, Parser) ->
     print_usage(Device, Parser),
     print_program_desc(Device, Parser),
-    maybe_print_commands(is_command_parser(Parser), Device, Parser),
+    maybe_print_commands(
+      cli_parser:is_command_parser(Parser),
+      Device, Parser),
     print_options(Device, Parser).
-
-is_command_parser(Parser) ->
-    length(cli_parser:commands(Parser)) > 0.
 
 %% -------------------------------------------------------------------
 %% Usage
@@ -199,6 +198,7 @@ split_parser_version(Parser) ->
 print_program_and_version(Device, Prog, Version) ->
     io:format(Device, "~s ~s~n", [Prog, Version]).
 
+print_version_extra(_Device, []) -> ok;
 print_version_extra(Device, Extra) ->
     io:format(Device, formatted_version_extra(Extra), []).
 
@@ -223,7 +223,11 @@ format_error_msg({unknown_opt, Name}) ->
 format_error_msg({missing_arg, _Key, Name}) ->
     io_lib:format("option '~s' requires an argument", [Name]);
 format_error_msg({unexpected_arg, _Key, Name}) ->
-    io_lib:format("option '~s' doesn't allow an argument", [Name]).
+    io_lib:format("option '~s' doesn't allow an argument", [Name]);
+format_error_msg({unknown_command, Name}) ->
+    io_lib:format("unrecognized command '~s'", [Name]);
+format_error_msg(missing_command) ->
+    "this program requires a command".
 
 %% ===================================================================
 %% Print usage error

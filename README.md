@@ -452,6 +452,12 @@ using macros, variables, functions - or any combination thereof!
   plain text file)
 - Option sections (see `tar --help`)
 
+# Best practices
+
+Command and option help should not be capitalized, end with period, or
+otherwise be treated as complete sentences. They are short descriptive
+blurbs. Use semi-colons to add additional blurb.
+
 # Glossary
 
 **Argument**
@@ -494,4 +500,8 @@ characters or digits
 
 - `--help` and `--version` options are hard coded, and this isn't
   good - provide a flag associated with the parser to disable
-  either/both.
+  either/both (maybe)
+
+- There's no built-in indication that "COMMAND --help" is available;
+  the user can provide that cue in the usage, but it's an added burden
+  for something that's always available

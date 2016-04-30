@@ -7,10 +7,10 @@
 main(Args) ->
     Parser = sample2_parser(),
     case cli:parse_args(Args, Parser) of
-        {ok, print_help} -> cli:print_help(Parser);
-        {ok, print_version} -> cli:print_version(Parser);
-        {ok, Parsed} -> handle_parsed(Parsed, Parser);
-        {error, Err} -> cli:print_error_and_halt(Err, Parser)
+        {ok, {print_help, P}}    -> cli:print_help(P);
+        {ok, {print_version, P}} -> cli:print_version(P);
+        {ok, Parsed}             -> handle_parsed(Parsed);
+        {error, Err, P}          -> cli:print_error_and_halt(Err, P)
     end.
 
 sample2_parser() ->
@@ -18,15 +18,15 @@ sample2_parser() ->
       "sample2",
       "[OPTION]... COMMAND [ARG]...",
       "Sample CLI that supports commands yo.\n",
-      [{"list", "List directory contents", list_parser()},
-       {"del",  "Delete directory contents", del_parser()}
+      [{"list", "list directory contents", list_parser()},
+       {"del",  "delete directory contents", del_parser()}
       ],
-      [{force, "-F, --force", "Used to confirm risky operations", [flag]}],
+      [{force, "-F, --force", "confirm risky operations", [flag]}],
       [{version, "1.0"}]).
 
 list_parser() ->
     cli:parser(
-      "sample2-list",
+      "sample2 list",
       "[OPTION]... [DIR]",
       "List DIR or current dir if not specified. "
       "directory.",
@@ -34,17 +34,18 @@ list_parser() ->
 
 del_parser() ->
     cli:parser(
-      "sample2-del",
+      "sample2 del",
       "[OPTION]... [DIR]",
       "Delete DIR or current dir if not specified.",
       []).
 
-handle_parsed({_Opts, []}, _Parser) ->
-    print_message(?default_message);
-handle_parsed({_Opts, [Msg]}, _Parser) ->
-    print_message(Msg);
-handle_parsed(_, Parser) ->
-    cli:print_usage_error_and_halt(Parser).
+handle_parsed({"list", Opts, Args}) ->
+    handle_list(Opts, Args);
+handle_parsed({"del", Opts, Args}) ->
+    handle_del(Opts, Args).
 
-print_message(Msg) ->
-    io:format("~s~n", [Msg]).
+handle_list(Opts, Args) ->
+    io:format("TODO: list ~p ~p~n", [Opts, Args]).
+
+handle_del(Opts, Args) ->
+    io:format("TODO: del ~p ~p~n", [Opts, Args]).

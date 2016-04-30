@@ -1,9 +1,10 @@
 -module(cli_parser).
 
 -export([new/2, prog/1, usage/1, version/1, desc/1, options/1,
-         commands/1, parse_args/2]).
+         commands/1, is_command_parser/1, parse_args/2]).
 
 -record(parser, {prog, usage, version, desc, opts, cmds}).
+-record(ps, {p, opts, mode}). % parse state (ps)
 -record(lo, {k, s, l, arg}). % lookup option (lo)
 
 %% ===================================================================
@@ -35,12 +36,20 @@ options(#parser{opts=Opts}) -> Opts.
 
 commands(#parser{cmds=Cmds}) -> Cmds.
 
+is_command_parser(#parser{cmds=Cmds}) -> length(Cmds) > 0.
+
 %% ===================================================================
 %% Parse args
 %% ===================================================================
 
 parse_args(Args, Parser) ->
-    finalize_parsed(parse_tokens(tokenize(Args), Parser)).
+    Tokens = tokenize(Args),
+    Parsed = parse_tokens(Tokens, Parser),
+    finalize_parsed(Parsed, Parser).
+
+%% -------------------------------------------------------------------
+%% Tokenize
+%% -------------------------------------------------------------------
 
 tokenize(Args) ->
     acc_tokens(Args, has_opts, []).
@@ -67,49 +76,68 @@ long_opt(Opt) ->
 short_opt([Char]) -> {short, [Char]};
 short_opt([Char|MoreChars]) -> {short, [Char], MoreChars}.
 
-parse_tokens(Tokens, #parser{opts=Opts}) ->
-    parse_tokens_acc(Tokens, opts_lookup(Opts), []).
+%% -------------------------------------------------------------------
+%% Parse
+%% -------------------------------------------------------------------
 
-opts_lookup(Opts) ->
-    [lookup_opt(Opt) || Opt <- Opts].
-
-lookup_opt(Opt) ->
-    #lo{
-       k=cli_opt:key(Opt),
-       s=strip_short(cli_opt:short(Opt)),
-       l=strip_long(cli_opt:long(Opt)),
-       arg=lo_arg(Opt)
-      }.
-
-strip_short(undefined)  -> undefined;
-strip_short("-"++Short) -> Short.
-
-strip_long(undefined)  -> undefined;
-strip_long("--"++Long) -> Long.
-
-lo_arg(Opt) ->
-    case cli_opt:has_arg(Opt) of
-        yes      -> yes;
-        optional -> opt;
-        no       -> no
+parse_tokens(Tokens, Parser) ->
+    case is_command_parser(Parser) of
+        true  -> parse_command_tokens(Tokens, Parser);
+        false -> parse_all_tokens(Tokens, Parser)
     end.
 
-parse_tokens_acc([], _Lookup, Acc) ->
+parse_command_tokens(Tokens, Parser) ->
+    PS = parse_state(Parser, to_pos),
+    handle_parse_command_tokens(parse_tokens_acc(Tokens, PS, []), PS).
+
+handle_parse_command_tokens({ok, {Cmd, RestTokens, Parsed}}, PS) ->
+    try_sub_parse_tokens(
+      find_sub_parser(Cmd, PS),
+      Cmd, RestTokens, Parsed, PS);
+handle_parse_command_tokens({ok, _Parsed}, #ps{p=Parser}) ->
+    {error, missing_command, Parser};
+handle_parse_command_tokens({error, Err, Parser}, _PS) ->
+    {error, Err, Parser}.
+
+find_sub_parser(Cmd, #ps{p=#parser{cmds=Cmds}}) ->
+    case lists:keyfind(Cmd, 1, Cmds) of
+        {_, _, Parser} -> {ok, Parser};
+        false -> error
+    end.
+
+try_sub_parse_tokens({ok, Parser}, Cmd, RestTokens, Parsed, _PS0) ->
+    PS = parse_state(Parser, all),
+    handle_sub_parse_tokens(parse_tokens_acc(RestTokens, PS, Parsed), Cmd);
+try_sub_parse_tokens(error, Cmd, _RestTokens, _Parsed, #ps{p=Parser}) ->
+    {error, {unknown_command, Cmd}, Parser}.
+
+handle_sub_parse_tokens({ok, Parsed}, Cmd) ->
+    {ok, {Cmd, Parsed}};
+handle_sub_parse_tokens({error, Err, Parser}, _Cmd) ->
+    {error, Err, Parser}.
+
+parse_all_tokens(Tokens, Parser) ->
+    PS = parse_state(Parser, all),
+    parse_tokens_acc(Tokens, PS, []).
+
+parse_tokens_acc([], _PS, Acc) ->
     {ok, lists:reverse(Acc)};
-parse_tokens_acc(Tokens, Lookup, Acc) ->
-    handle_try_parse(try_parse(Tokens, Lookup), Lookup, Acc).
+parse_tokens_acc(Tokens, #ps{opts=Opts}=PS, Acc) ->
+    handle_try_parse(try_parse(Tokens, Opts), PS, Acc).
 
-handle_try_parse({ok, {Parsed, NextTokens}}, Lookup, Acc) ->
-    parse_tokens_acc(NextTokens, Lookup, [Parsed|Acc]);
-handle_try_parse({ok, NextTokens}, Lookup, Acc) ->
-    parse_tokens_acc(NextTokens, Lookup, Acc);
-handle_try_parse({error, Err}, _Lookup, _Acc) ->
-    {error, Err}.
+handle_try_parse({ok, {{pos, Arg}, NextTokens}}, #ps{mode=to_pos}, Acc) ->
+    {ok, {Arg, NextTokens, lists:reverse(Acc)}};
+handle_try_parse({ok, {Parsed, NextTokens}}, PS, Acc) ->
+    parse_tokens_acc(NextTokens, PS, [Parsed|Acc]);
+handle_try_parse({ok, NextTokens}, PS, Acc) ->
+    parse_tokens_acc(NextTokens, PS, Acc);
+handle_try_parse({error, Err}, #ps{p=Parser}, _Acc) ->
+    {error, Err, Parser}.
 
-try_parse(Tokens, [LookupArg|RestLookup]) ->
-    handle_opt(opt(Tokens, LookupArg), Tokens, RestLookup);
-try_parse([{arg, Arg}|Rest], []) ->
-    {ok, {{pos, Arg}, Rest}};
+try_parse(Tokens, [LookupOpt|RestLookup]) ->
+    handle_opt(opt(Tokens, LookupOpt), Tokens, RestLookup);
+try_parse([{arg, Arg}|RestTokens], []) ->
+    {ok, {{pos, Arg}, RestTokens}};
 try_parse([OptToken|_], []) ->
     {error, {unknown_opt, opt_token_str(OptToken)}}.
 
@@ -171,14 +199,64 @@ apply_more_short_chars([Char], Tokens) ->
 apply_more_short_chars([Char|Rest], Tokens) ->
     [{short, [Char], Rest}|Tokens].
 
-finalize_parsed({ok, Parsed}) ->
-    finalize_parsed_acc(Parsed, [], []);
-finalize_parsed({error, {unknown_opt, "--help"}}) ->
-    {ok, print_help};
-finalize_parsed({error, {unknown_opt, "--version"}}) ->
-    {ok, print_version};
-finalize_parsed({error, Err}) ->
-    {error, Err}.
+opt_token_str({long, Name})  -> "--" ++ Name;
+opt_token_str({short, Name}) -> "-" ++ Name;
+opt_token_str({short, Name, _}) -> "-" ++ Name.
+
+%% -------------------------------------------------------------------
+%% Parse state
+%% -------------------------------------------------------------------
+
+parse_state(Parser, Mode) ->
+    #ps{p=Parser, opts=opts_lookup(Parser), mode=Mode}.
+
+opts_lookup(#parser{opts=Opts}) ->
+    [lookup_opt(Opt) || Opt <- Opts].
+
+lookup_opt(Opt) ->
+    #lo{
+       k=cli_opt:key(Opt),
+       s=strip_short(cli_opt:short(Opt)),
+       l=strip_long(cli_opt:long(Opt)),
+       arg=lo_arg(Opt)
+      }.
+
+strip_short(undefined)  -> undefined;
+strip_short("-"++Short) -> Short.
+
+strip_long(undefined)  -> undefined;
+strip_long("--"++Long) -> Long.
+
+lo_arg(Opt) ->
+    case cli_opt:has_arg(Opt) of
+        yes      -> yes;
+        optional -> opt;
+        no       -> no
+    end.
+
+%% -------------------------------------------------------------------
+%% Finalize
+%% -------------------------------------------------------------------
+
+finalize_parsed({ok, {Cmd, Parsed}}, _Root) ->
+    {Opts, Pos} = finalize_parsed_acc(Parsed, [], []),
+    {ok, {Cmd, Opts, Pos}};
+finalize_parsed({ok, Parsed}, _Root) ->
+    {ok, finalize_parsed_acc(Parsed, [], [])};
+finalize_parsed({error, {unknown_opt, "--help"}, Parser}, _Root) ->
+    handle_unknown_help_opt(Parser);
+finalize_parsed({error, {unknown_opt, "--version"}=Err, Root}, Root) ->
+    handle_unknown_version_opt(Root, Err);
+finalize_parsed({error, Err, Parser}, _Root) ->
+    {error, Err, Parser}.
+
+handle_unknown_help_opt(Parser) ->
+    {ok, {print_help, Parser}}.
+
+handle_unknown_version_opt(#parser{version=undefined}=Parser, Err) ->
+    {error, Err, Parser};
+handle_unknown_version_opt(Parser, _Err) ->
+    {ok, {print_version, Parser}}.
 
 finalize_parsed_acc([{opt, {Key, undefined}}|Rest], Opts, PosArgs) ->
     finalize_parsed_acc(Rest, [Key|Opts], PosArgs);
@@ -187,8 +265,4 @@ finalize_parsed_acc([{opt, {Key, Val}}|Rest], Opts, PosArgs) ->
 finalize_parsed_acc([{pos, Arg}|Rest], Opts, PosArgs) ->
     finalize_parsed_acc(Rest, Opts, [Arg|PosArgs]);
 finalize_parsed_acc([], Opts, PosArgs) ->
-    {ok, {lists:reverse(Opts), lists:reverse(PosArgs)}}.
-
-opt_token_str({long, Name})  -> "--" ++ Name;
-opt_token_str({short, Name}) -> "-" ++ Name;
-opt_token_str({short, Name, _}) -> "-" ++ Name.
+    {lists:reverse(Opts), lists:reverse(PosArgs)}.

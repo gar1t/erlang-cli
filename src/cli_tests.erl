@@ -22,10 +22,10 @@ test_cli_opt() ->
 
     #{desc := "foo option"} = Opt(foo, [{desc, "foo option"}]),
 
-    #{has_arg := yes}      = Opt(bar, []), 
-    #{has_arg := no}       = Opt(bar, [flag]), 
-    #{has_arg := no}       = Opt(bar, [no_arg]), 
-    #{has_arg := optional} = Opt(bar, [optional_arg]), 
+    #{has_arg := yes}      = Opt(bar, []),
+    #{has_arg := no}       = Opt(bar, [flag]),
+    #{has_arg := no}       = Opt(bar, [no_arg]),
+    #{has_arg := optional} = Opt(bar, [optional_arg]),
 
     #{short := undefined, long := "--baz"}   = Opt(baz, []),
     #{short := "-Z",      long := "--baz"}   = Opt(baz, [{name, "-Z, --baz"}]),
@@ -67,21 +67,21 @@ test_parse_args() ->
 
     %% Option with required arg (Req)
     Req = fun(Args) -> P(Args, [{foo, "-F, --foo"}]) end,
-    {error, {missing_arg, foo, "--foo"}} = Req(["--foo"]),
-    {ok, {[{foo, "123"}], []}}           = Req(["--foo", "123"]),
-    {ok, {[{foo, "123"}], []}}           = Req(["--foo=123"]),
-    {error, {missing_arg, foo, "-F"}}    = Req(["-F"]),
-    {ok, {[{foo, "123"}], []}}           = Req(["-F", "123"]),
-    {ok, {[{foo, "123"}], []}}           = Req(["-F123"]),
+    {error, {missing_arg, foo, "--foo"}, _} = Req(["--foo"]),
+    {ok, {[{foo, "123"}], []}}              = Req(["--foo", "123"]),
+    {ok, {[{foo, "123"}], []}}              = Req(["--foo=123"]),
+    {error, {missing_arg, foo, "-F"}, _}    = Req(["-F"]),
+    {ok, {[{foo, "123"}], []}}              = Req(["-F", "123"]),
+    {ok, {[{foo, "123"}], []}}              = Req(["-F123"]),
 
     %% Option with no arg (NoArg)
     NoArg = fun(Args) -> P(Args, [{foo, "-F, --foo", "", [no_arg]}]) end,
-    {ok, {[foo], []}}                       = NoArg(["--foo"]),
-    {ok, {[foo], ["123"]}}                  = NoArg(["--foo", "123"]),
-    {error, {unexpected_arg, foo, "--foo"}} = NoArg(["--foo=123"]),
-    {ok, {[foo], []}}                       = NoArg(["-F"]),
-    {ok, {[foo], ["123"]}}                  = NoArg(["-F", "123"]),
-    {error, {unknown_opt, "-1"}}            = NoArg(["-F123"]),
+    {ok, {[foo], []}}                          = NoArg(["--foo"]),
+    {ok, {[foo], ["123"]}}                     = NoArg(["--foo", "123"]),
+    {error, {unexpected_arg, foo, "--foo"}, _} = NoArg(["--foo=123"]),
+    {ok, {[foo], []}}                          = NoArg(["-F"]),
+    {ok, {[foo], ["123"]}}                     = NoArg(["-F", "123"]),
+    {error, {unknown_opt, "-1"}, _}            = NoArg(["-F123"]),
 
     %% Option with optional arg (Opt)
     Opt = fun(Args) -> P(Args, [{foo, "-F, --foo", "", [optional_arg]}]) end,
@@ -92,13 +92,17 @@ test_parse_args() ->
     {ok, {[{foo, "123"}], []}} = Opt(["-F", "123"]),
     {ok, {[{foo, "123"}], []}} = Opt(["-F123"]),
 
-    %% Special long options (help and version)
-    {ok, print_help}             = NP(["--help"]),
-    {ok, print_version}          = NP(["--version"]),
-    {ok, print_help}             = NP(["--help", "-F"]),
-    {ok, print_version}          = NP(["--version", "-F"]),
-    {error, {unknown_opt, "-F"}} = NP(["-F", "--help"]),
-    {error, {unknown_opt, "-F"}} = NP(["-F", "--version"]),
+    %% Built-in --help option
+    {ok, {print_help, _}}           = NP(["--help"]),
+    {ok, {print_help, _}}           = NP(["--help", "-F"]),
+    {error, {unknown_opt, "-F"}, _} = NP(["-F", "--help"]),
+
+    %% Built-in --version option (only when version is defined) (VP)
+    {error, {unknown_opt, "--version"}, _} = NP(["--version"]),
+    VP = fun(Args) -> parse_args(Args, [], [{version, "1.0"}]) end,
+    {ok, {print_version, _}}        = VP(["--version"]),
+    {ok, {print_version, _}}        = VP(["--version", "-F"]),
+    {error, {unknown_opt, "-F"}, _} = VP(["-F", "--version"]),
 
     %% Kitchen sink (KS)
     KSOpts =
@@ -108,17 +112,20 @@ test_parse_args() ->
     KS = fun(Args) -> P(Args, KSOpts) end,
     {ok, {[flag, {required, "abc"}, {optional, "arg1"}], ["arg2"]}} =
         KS(["-F", "--req", "abc", "-O", "arg1", "arg2"]),
-    {error, {missing_arg, required, "--req"}} =
+    {error, {missing_arg, required, "--req"}, _} =
         KS(["-F", "--req", "-O", "arg1", "arg2"]),
     {ok, {[flag, {required, "abc"}, {optional, ""}], ["arg1", "arg2"]}} =
         KS(["-F", "--req", "abc", "-O", "--", "arg1", "arg2"]),
 
     %% Multiple values
-    {ok, {[flag, flag, flag, {optional, "foo"}, {optional, "bar"}], []}} = 
+    {ok, {[flag, flag, flag, {optional, "foo"}, {optional, "bar"}], []}} =
         KS(["-FFF", "-Ofoo", "-Obar"]),
 
     io:format("OK~n").
 
 parse_args(Args, OptSpec) ->
-    Parser = cli:parser("p", "", "", OptSpec),
+    parse_args(Args, OptSpec, []).
+
+parse_args(Args, OptSpec, Props) ->
+    Parser = cli:parser("p", "", "", OptSpec, Props),
     cli:parse_args(Args, Parser).
