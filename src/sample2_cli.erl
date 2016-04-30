@@ -2,7 +2,7 @@
 
 -export([main/1]).
 
--define(default_message, "Aye Chiuawa!").
+-define(default_message, "Ay Chiwawa!").
 
 main(Args) ->
     Parser = sample2_parser(),
