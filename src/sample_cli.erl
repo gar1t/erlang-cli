@@ -34,7 +34,7 @@ sample_parser() ->
        }
       ],
       [{version,
-        "sample 1.0\n"
+        "1.0\n"
         "Copyright (C) 2016 Garrett Smith\n"
         "License GPLv3+: GNU GPL version 3 or later "
         "<http://gnu.org/licenses/gpl.html>. This is free software: "

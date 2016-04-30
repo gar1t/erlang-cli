@@ -186,11 +186,23 @@ maybe_print_version_opt(false, _) ->
 print_version(Parser) ->
     print_version(standard_error, Parser).
 
-print_version(Device, Parser) ->    
-    io:format(Device, formatted_version(Parser), []).
+print_version(Device, Parser) ->
+    Prog = cli_parser:prog(Parser),
+    {Version, Extra} = split_parser_version(Parser),
+    print_program_and_version(Device, Prog, Version),
+    print_version_extra(Device, Extra).
 
-formatted_version(Parser) ->
-    Pars = split_lines(cli_parser:version(Parser)),
+split_parser_version(Parser) ->
+    [Version|Extra] = split_lines(cli_parser:version(Parser)),
+    {Version, Extra}.
+
+print_program_and_version(Device, Prog, Version) ->
+    io:format(Device, "~s ~s~n", [Prog, Version]).
+
+print_version_extra(Device, Extra) ->
+    io:format(Device, formatted_version_extra(Extra), []).
+
+formatted_version_extra(Pars) ->
     prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
 
 %% ===================================================================
