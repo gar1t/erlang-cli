@@ -1,8 +1,10 @@
 -module(cli).
 
--export([parser/4, parser/5, parse_args/2, print_help/1,
-         print_version/1, print_error/2, print_error_and_halt/2,
-         print_error_and_halt/3]).
+-export([parser/4, parser/5, command_parser/5, command_parser/6,
+         parse_args/2, print_help/1, print_version/1, print_error/2,
+         print_error_and_halt/2, print_error_and_halt/3,
+         print_usage_error/1, print_usage_error_and_halt/1,
+         print_usage_error_and_halt/2]).
 
 -define(default_exit_code, 2).
 
@@ -16,6 +18,12 @@ parser(Prog, Usage, Desc, OptionSpec, Config) ->
        {desc, Desc},
        {options, parser_opts(OptionSpec)}
        |Config]).
+
+command_parser(Prog, Usage, Desc, Commands, OptionSpec) ->
+    parser(Prog, Usage, Desc, OptionSpec, [{commands, Commands}]).
+
+command_parser(Prog, Usage, Desc, Commands, OptionSpec, Config) ->
+    parser(Prog, Usage, Desc, OptionSpec, [{commands, Commands}|Config]).
 
 parser_opts(Specs) ->
     [parser_opt(Spec) || Spec <- Specs].

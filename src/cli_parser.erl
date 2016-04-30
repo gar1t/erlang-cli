@@ -1,9 +1,9 @@
 -module(cli_parser).
 
 -export([new/2, prog/1, usage/1, version/1, desc/1, options/1,
-         parse_args/2]).
+         commands/1, parse_args/2]).
 
--record(parser, {prog, usage, version, desc, opts}).
+-record(parser, {prog, usage, version, desc, opts, cmds}).
 -record(lo, {k, s, l, arg}). % lookup option (lo)
 
 %% ===================================================================
@@ -16,7 +16,8 @@ new(Prog, Opts) ->
        usage=proplists:get_value(usage, Opts),
        version=proplists:get_value(version, Opts),
        desc=proplists:get_value(desc, Opts),
-       opts=proplists:get_value(options, Opts, [])}.
+       opts=proplists:get_value(options, Opts, []),
+       cmds=proplists:get_value(commands, Opts, [])}.
 
 %% ===================================================================
 %% Attrs
@@ -31,6 +32,8 @@ version(#parser{version=Version}) -> Version.
 desc(#parser{desc=Desc}) -> Desc.
 
 options(#parser{opts=Opts}) -> Opts.
+
+commands(#parser{cmds=Cmds}) -> Cmds.
 
 %% ===================================================================
 %% Parse args

@@ -18,7 +18,11 @@ print_help(Parser) ->
 print_help(Device, Parser) ->
     print_usage(Device, Parser),
     print_program_desc(Device, Parser),
+    maybe_print_commands(is_command_parser(Parser), Device, Parser),
     print_options(Device, Parser).
+
+is_command_parser(Parser) ->
+    length(cli_parser:commands(Parser)) > 0.
 
 print_usage(Device, Parser) ->
     UsageLines = usage_lines(Parser),
@@ -44,6 +48,24 @@ print_program_desc(Device, Parser) ->
 formatted_program_desc(Parser) ->
     Pars = split_lines(cli_parser:desc(Parser)),
     prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
+
+
+maybe_print_commands(true, Device, Parser) ->
+    io:format(Device, "Commands:~n", []),
+    print_commands(Device, cli_parser:commands(Parser)),
+    io:format(Device, "~n", []);
+maybe_print_commands(false, _Device, _Parser) ->
+    ok.
+
+print_commands(Device, [{Name, Help, _Parser}|Rest]) ->
+    print_opt_name_with_padding(Device, format_command_name(Name)),
+    print_opt_desc(Device, Help),
+    print_commands(Device, Rest);
+print_commands(_Device, []) ->
+    ok.
+
+format_command_name(Name) ->
+    io_lib:format("  ~s", [Name]).
 
 print_options(Device, Parser) ->
     io:format(Device, "Options:~n", []),
