@@ -24,6 +24,10 @@ print_help(Device, Parser) ->
 is_command_parser(Parser) ->
     length(cli_parser:commands(Parser)) > 0.
 
+%% -------------------------------------------------------------------
+%% Usage
+%% -------------------------------------------------------------------
+
 print_usage(Device, Parser) ->
     UsageLines = usage_lines(Parser),
     Prog = cli_parser:prog(Parser),
@@ -42,6 +46,10 @@ print_usage_lines(_Device, [], _Prog, _LineType) ->
 usage_line_prefix(first) -> "Usage:";
 usage_line_prefix(more)  -> "   or:".
 
+%% -------------------------------------------------------------------
+%% Program desc
+%% -------------------------------------------------------------------
+
 print_program_desc(Device, Parser) ->
     io:format(Device, "~s~n", [formatted_program_desc(Parser)]).
 
@@ -49,6 +57,9 @@ formatted_program_desc(Parser) ->
     Pars = split_lines(cli_parser:desc(Parser)),
     prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
 
+%% -------------------------------------------------------------------
+%% Commands
+%% -------------------------------------------------------------------
 
 maybe_print_commands(true, Device, Parser) ->
     io:format(Device, "Commands:~n", []),
@@ -66,6 +77,10 @@ print_commands(_Device, []) ->
 
 format_command_name(Name) ->
     io_lib:format("  ~s", [Name]).
+
+%% -------------------------------------------------------------------
+%% Options
+%% -------------------------------------------------------------------
 
 print_options(Device, Parser) ->
     io:format(Device, "Options:~n", []),
