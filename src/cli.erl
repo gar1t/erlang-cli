@@ -45,3 +45,13 @@ print_error_and_halt(Err, Parser) ->
 print_error_and_halt(Err, Parser, ExitCode) ->
     print_error(Err, Parser),
     erlang:halt(ExitCode).
+
+print_usage_error(Parser) ->
+    cli_help:print_usage_error(Parser).
+
+print_usage_error_and_halt(Parser) ->
+    print_usage_error_and_halt(Parser, ?default_exit_code).
+
+print_usage_error_and_halt(Parser, ExitCode) ->
+    print_usage_error(Parser),
+    erlang:halt(ExitCode).

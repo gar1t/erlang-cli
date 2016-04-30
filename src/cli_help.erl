@@ -2,7 +2,8 @@
 
 -export([print_help/1, print_help/2,
          print_version/1, print_version/2,
-         print_error/2, print_error/3]).
+         print_error/2, print_error/3,
+         print_usage_error/1, print_usage_error/2]).
 
 -define(page_width, 79).
 -define(opt_desc_col, 30).
@@ -174,6 +175,18 @@ format_error_msg({missing_arg, _Key, Name}) ->
     io_lib:format("option '~s' requires an argument", [Name]);
 format_error_msg({unexpected_arg, _Key, Name}) ->
     io_lib:format("option '~s' doesn't allow an argument", [Name]).
+
+%% ===================================================================
+%% Print usage error
+%% ===================================================================
+
+print_usage_error(Parser) ->
+    print_usage_error(standard_error, Parser).
+
+print_usage_error(Device, Parser) ->
+    Prog = cli_parser:prog(Parser),
+    print_usage(Device, Parser),
+    io:format(Device, "Try '~s --help' for more information.~n", [Prog]).
 
 %% ===================================================================
 %% Helpers
