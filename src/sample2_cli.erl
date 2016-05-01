@@ -13,10 +13,10 @@ parser() ->
       "sample2",
       "[OPTION]... COMMAND [ARG]...",
       "Sample CLI that supports commands yo.\n",
+      [{force, "-F, --force", "confirm risky operations", [flag]}],
       [{"list", "list directory contents", list_parser()},
        {"del",  "delete directory contents", del_parser()}
       ],
-      [{force, "-F, --force", "confirm risky operations", [flag]}],
       [{version, "1.0"}]).
 
 list_parser() ->

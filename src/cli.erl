@@ -17,10 +17,10 @@ parser(Prog, Usage, Desc, OptionSpec, Config) ->
        {options, parser_opts(OptionSpec)}
        |Config]).
 
-command_parser(Prog, Usage, Desc, Commands, OptionSpec) ->
+command_parser(Prog, Usage, Desc, OptionSpec, Commands) ->
     parser(Prog, Usage, Desc, OptionSpec, [{commands, Commands}]).
 
-command_parser(Prog, Usage, Desc, Commands, OptionSpec, Config) ->
+command_parser(Prog, Usage, Desc, OptionSpec, Commands, Config) ->
     parser(Prog, Usage, Desc, OptionSpec, [{commands, Commands}|Config]).
 
 parser_opts(Specs) ->
