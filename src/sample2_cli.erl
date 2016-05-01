@@ -5,15 +5,10 @@
 -define(default_message, "Ay Chiwawa!").
 
 main(Args) ->
-    Parser = sample2_parser(),
-    case cli:parse_args(Args, Parser) of
-        {ok, {print_help, P}}    -> cli:print_help(P);
-        {ok, {print_version, P}} -> cli:print_version(P);
-        {ok, Parsed}             -> handle_parsed(Parsed);
-        {error, Err, P}          -> cli:print_error_and_halt(Err, P)
-    end.
+    Code = cli:main(Args, parser(), fun handle_cmd/1),
+    erlang:halt(Code).
 
-sample2_parser() ->
+parser() ->
     cli:command_parser(
       "sample2",
       "[OPTION]... COMMAND [ARG]...",
@@ -27,21 +22,20 @@ sample2_parser() ->
 list_parser() ->
     cli:parser(
       "sample2 list",
-      "[OPTION]... [DIR]",
-      "List DIR or current dir if not specified. "
-      "directory.",
+      "[OPTION]... [DIR]...",
+      "List DIRs or current dir if not specified.",
       []).
 
 del_parser() ->
     cli:parser(
       "sample2 del",
-      "[OPTION]... [DIR]",
-      "Delete DIR or current dir if not specified.",
+      "[OPTION]... [DIR]...",
+      "Delete DIRs or current dir if not specified. Requires '--force'.",
       []).
 
-handle_parsed({"list", Opts, Args}) ->
+handle_cmd({"list", Opts, Args}) ->
     handle_list(Opts, Args);
-handle_parsed({"del", Opts, Args}) ->
+handle_cmd({"del", Opts, Args}) ->
     handle_del(Opts, Args).
 
 handle_list(Opts, Args) ->

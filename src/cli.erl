@@ -2,9 +2,7 @@
 
 -export([parser/4, parser/5, command_parser/5, command_parser/6,
          parse_args/2, print_help/1, print_version/1, print_error/2,
-         print_error_and_halt/2, print_error_and_halt/3,
-         print_usage_error/1, print_usage_error_and_halt/1,
-         print_usage_error_and_halt/2]).
+         print_usage_error/1, main/3]).
 
 -define(default_exit_code, 2).
 
@@ -47,19 +45,8 @@ print_version(Parser) ->
 print_error(Err, Parser) ->
     cli_help:print_error(Err, Parser).
 
-print_error_and_halt(Err, Parser) ->
-    print_error_and_halt(Err, Parser, ?default_exit_code).
-
-print_error_and_halt(Err, Parser, ExitCode) ->
-    print_error(Err, Parser),
-    erlang:halt(ExitCode).
-
 print_usage_error(Parser) ->
     cli_help:print_usage_error(Parser).
 
-print_usage_error_and_halt(Parser) ->
-    print_usage_error_and_halt(Parser, ?default_exit_code).
-
-print_usage_error_and_halt(Parser, ExitCode) ->
-    print_usage_error(Parser),
-    erlang:halt(ExitCode).
+main(Args, Parser, HandleParsed) ->
+    cli_main:main(Args, Parser, HandleParsed).
