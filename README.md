@@ -505,3 +505,8 @@ characters or digits
 - There's no built-in indication that "COMMAND --help" is available;
   the user can provide that cue in the usage, but it's an added burden
   for something that's always available
+
+- Using prettypr:text_par removes all spacing from help text. This is
+  right in some cases but we need to support an explicit "don't
+  reformat" symbol, maybe appearing at the start of a par - in which
+  case we use prettpr:text, which preserves formatting.
