@@ -1,4 +1,5 @@
+/build
+/rebar.lock
 *.beam
 *.pyc
 erl_crash.dump
-/build

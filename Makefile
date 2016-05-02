@@ -4,7 +4,7 @@ compile:
 	./rebar3 compile
 
 clean:
-	./rebar3 clean
+	rm -rf build; rm -f rebar.lock
 
 test: compile
 	bin/test
