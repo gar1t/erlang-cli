@@ -49,6 +49,8 @@ usage_line_prefix(more)  -> "   or:".
 %% Program desc
 %% -------------------------------------------------------------------
 
+print_program_desc(undefined, _Parser) ->
+    ok;
 print_program_desc(Device, Parser) ->
     io:format(Device, "~s~n", [formatted_program_desc(Parser)]).
 
