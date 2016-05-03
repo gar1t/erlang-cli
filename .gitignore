@@ -1,5 +1,7 @@
 /build
 /rebar.lock
+/ebin
+/.rebar3
 *.beam
 *.pyc
 erl_crash.dump
