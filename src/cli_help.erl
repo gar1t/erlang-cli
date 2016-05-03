@@ -49,14 +49,18 @@ usage_line_prefix(more)  -> "   or:".
 %% Program desc
 %% -------------------------------------------------------------------
 
-print_program_desc(undefined, _Parser) ->
-    ok;
 print_program_desc(Device, Parser) ->
     io:format(Device, "~s~n", [formatted_program_desc(Parser)]).
 
 formatted_program_desc(Parser) ->
-    Pars = split_lines(cli_parser:desc(Parser)),
+    Pars = split_lines(program_desc(Parser)),
     prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
+
+program_desc(Parser) ->
+    case cli_parser:desc(Parser) of
+        undefined -> "";
+        Desc -> Desc
+    end.
 
 %% -------------------------------------------------------------------
 %% Commands
