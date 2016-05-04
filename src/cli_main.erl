@@ -6,18 +6,16 @@
 -define(error_exit, 1).
 -define(code(N), is_integer(N)).
 
-main(Args, Parser, HandleParsed) ->
-    handle_main_parse_args(
-      cli:parse_args(Args, Parser),
-      HandleParsed).
+main(Args, Parser, Handler) ->
+    handle_main_parse_args(cli:parse_args(Args, Parser), Handler).
 
-handle_main_parse_args({ok, {print_help, P}}, _) ->
+handle_main_parse_args({{ok, print_help}, P}, _) ->
     print_help(P);
-handle_main_parse_args({ok, {print_version, P}}, _) ->
+handle_main_parse_args({{ok, print_version}, P}, _) ->
     print_version(P);
-handle_main_parse_args({ok, Parsed}, Handle) ->
+handle_main_parse_args({{ok, Parsed}, _}, Handle) ->
     handle_parsed(Parsed, Handle);
-handle_main_parse_args({error, Err, P}, _) ->
+handle_main_parse_args({{error, Err}, P}, _) ->
     print_error(Err, P).
 
 print_help(P) ->

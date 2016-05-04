@@ -42,10 +42,10 @@ is_command_parser(#parser{cmds=Cmds}) -> length(Cmds) > 0.
 %% Parse args
 %% ===================================================================
 
-parse_args(Args, Parser) ->
+parse_args(Args, RootParser) ->
     Tokens = tokenize(Args),
-    Parsed = parse_tokens(Tokens, Parser),
-    finalize_parsed(Parsed, Parser).
+    {ParseResult, ActiveParser} = parse_tokens(Tokens, RootParser),
+    finalize(ParseResult, ActiveParser).
 
 %% -------------------------------------------------------------------
 %% Tokenize
@@ -95,9 +95,9 @@ handle_parse_command_tokens({ok, {Cmd, RestTokens, Parsed}}, PS) ->
       find_sub_parser(Cmd, PS),
       Cmd, RestTokens, Parsed, PS);
 handle_parse_command_tokens({ok, _Parsed}, #ps{p=Parser}) ->
-    {error, missing_command, Parser};
-handle_parse_command_tokens({error, Err, Parser}, _PS) ->
-    {error, Err, Parser}.
+    {{error, missing_command}, Parser};
+handle_parse_command_tokens({error, Err}, #ps{p=Parser}) ->
+    {{error, Err}, Parser}.
 
 find_sub_parser(Cmd, #ps{p=#parser{cmds=Cmds}}) ->
     case lists:keyfind(Cmd, 1, Cmds) of
@@ -107,18 +107,24 @@ find_sub_parser(Cmd, #ps{p=#parser{cmds=Cmds}}) ->
 
 try_sub_parse_tokens({ok, Parser}, Cmd, RestTokens, Parsed, _PS0) ->
     PS = parse_state(Parser, all),
-    handle_sub_parse_tokens(parse_tokens_acc(RestTokens, PS, Parsed), Cmd);
+    SubParseResult = sub_parse_tokens(Cmd, RestTokens, Parsed, PS),
+    {SubParseResult, Parser};
 try_sub_parse_tokens(error, Cmd, _RestTokens, _Parsed, #ps{p=Parser}) ->
-    {error, {unknown_command, Cmd}, Parser}.
+    SubParseResult = {error, {unknown_command, Cmd}},
+    {SubParseResult, Parser}.
+
+sub_parse_tokens(Cmd, Tokens, Parsed, PS) ->
+    handle_sub_parse_tokens(parse_tokens_acc(Tokens, PS, Parsed), Cmd).
 
 handle_sub_parse_tokens({ok, Parsed}, Cmd) ->
     {ok, {Cmd, Parsed}};
-handle_sub_parse_tokens({error, Err, Parser}, _Cmd) ->
-    {error, Err, Parser}.
+handle_sub_parse_tokens({error, Err}, _Cmd) ->
+    {error, Err}.
 
 parse_all_tokens(Tokens, Parser) ->
     PS = parse_state(Parser, all),
-    parse_tokens_acc(Tokens, PS, []).
+    ParseResult = parse_tokens_acc(Tokens, PS, []),
+    {ParseResult, Parser}.
 
 parse_tokens_acc([], _PS, Acc) ->
     {ok, lists:reverse(Acc)};
@@ -131,8 +137,8 @@ handle_try_parse({ok, {Parsed, NextTokens}}, PS, Acc) ->
     parse_tokens_acc(NextTokens, PS, [Parsed|Acc]);
 handle_try_parse({ok, NextTokens}, PS, Acc) ->
     parse_tokens_acc(NextTokens, PS, Acc);
-handle_try_parse({error, Err}, #ps{p=Parser}, _Acc) ->
-    {error, Err, Parser}.
+handle_try_parse({error, Err}, _PS, _Acc) ->
+    {error, Err}.
 
 try_parse(Tokens, [LookupOpt|RestLookup]) ->
     handle_opt(opt(Tokens, LookupOpt), Tokens, RestLookup);
@@ -156,12 +162,12 @@ opt([{long, Name, Val}|Rest], #lo{l=Name, arg=yes, k=Key}) ->
 opt([{long, Name}, {arg, Val}|Rest], #lo{l=Name, arg=yes, k=Key}) ->
     {ok, {{Key, Val}, Rest}};
 opt([{long, Name}|_], #lo{l=Name, arg=yes, k=Key}) ->
-    {error, {missing_arg, Key, opt_token_str({long, Name})}};
+    {error, {missing_opt_arg, Key, opt_token_str({long, Name})}};
 %% Long option - takes no arg
 opt([{long, Name}|Rest], #lo{l=Name, arg=no, k=Key}) ->
     {ok, {{Key, undefined}, Rest}};
 opt([{long, Name, _Val}|_], #lo{l=Name, arg=no, k=Key}) ->
-    {error, {unexpected_arg, Key, opt_token_str({long, Name})}};
+    {error, {unexpected_opt_arg, Key, opt_token_str({long, Name})}};
 %% Long option - might have arg
 opt([{long, Name, Val}|Rest], #lo{l=Name, arg=opt, k=Key}) ->
     {ok, {{Key, Val}, Rest}};
@@ -175,7 +181,7 @@ opt([{short, Name, Val}|Rest], #lo{s=Name, arg=yes, k=Key}) ->
 opt([{short, Name}, {arg, Val}|Rest], #lo{s=Name, arg=yes, k=Key}) ->
     {ok, {{Key, Val}, Rest}};
 opt([{short, Name}|_], #lo{s=Name, arg=yes, k=Key}) ->
-    {error, {missing_arg, Key, opt_token_str({short, Name})}};
+    {error, {missing_opt_arg, Key, opt_token_str({short, Name})}};
 %% Short option - takes no arg
 opt([{short, Name, MoreChars}|Rest], #lo{s=Name, arg=no, k=Key}) ->
     {ok, {{Key, undefined}, apply_more_short_chars(MoreChars, Rest)}};
@@ -238,31 +244,31 @@ lo_arg(Opt) ->
 %% Finalize
 %% -------------------------------------------------------------------
 
-finalize_parsed({ok, {Cmd, Parsed}}, _Root) ->
-    {Opts, Pos} = finalize_parsed_acc(Parsed, [], []),
-    {ok, {Cmd, Opts, Pos}};
-finalize_parsed({ok, Parsed}, _Root) ->
-    {ok, finalize_parsed_acc(Parsed, [], [])};
-finalize_parsed({error, {unknown_opt, "--help"}, Parser}, _Root) ->
+finalize({ok, {Cmd, Parsed}}, Parser) ->
+    {Opts, PosArgs} = finalize_acc(Parsed, [], []),
+    {{ok, {Cmd, Opts, PosArgs}}, Parser};
+finalize({ok, Parsed}, Parser) ->
+    {{ok, finalize_acc(Parsed, [], [])}, Parser};
+finalize({error, {unknown_opt, "--help"}}, Parser) ->
     handle_unknown_help_opt(Parser);
-finalize_parsed({error, {unknown_opt, "--version"}=Err, Root}, Root) ->
-    handle_unknown_version_opt(Root, Err);
-finalize_parsed({error, Err, Parser}, _Root) ->
-    {error, Err, Parser}.
+finalize({error, {unknown_opt, "--version"}=Err}, Parser) ->
+    handle_unknown_version_opt(Parser, Err);
+finalize({error, Err}, Parser) ->
+    {{error, Err}, Parser}.
 
 handle_unknown_help_opt(Parser) ->
-    {ok, {print_help, Parser}}.
+    {{ok, print_help}, Parser}.
 
 handle_unknown_version_opt(#parser{version=undefined}=Parser, Err) ->
-    {error, Err, Parser};
+    {{error, Err}, Parser};
 handle_unknown_version_opt(Parser, _Err) ->
-    {ok, {print_version, Parser}}.
+    {{ok, print_version}, Parser}.
 
-finalize_parsed_acc([{opt, {Key, undefined}}|Rest], Opts, PosArgs) ->
-    finalize_parsed_acc(Rest, [Key|Opts], PosArgs);
-finalize_parsed_acc([{opt, {Key, Val}}|Rest], Opts, PosArgs) ->
-    finalize_parsed_acc(Rest, [{Key, Val}|Opts], PosArgs);
-finalize_parsed_acc([{pos, Arg}|Rest], Opts, PosArgs) ->
-    finalize_parsed_acc(Rest, Opts, [Arg|PosArgs]);
-finalize_parsed_acc([], Opts, PosArgs) ->
+finalize_acc([{opt, {Key, undefined}}|Rest], Opts, PosArgs) ->
+    finalize_acc(Rest, [Key|Opts], PosArgs);
+finalize_acc([{opt, {Key, Val}}|Rest], Opts, PosArgs) ->
+    finalize_acc(Rest, [{Key, Val}|Opts], PosArgs);
+finalize_acc([{pos, Arg}|Rest], Opts, PosArgs) ->
+    finalize_acc(Rest, Opts, [Arg|PosArgs]);
+finalize_acc([], Opts, PosArgs) ->
     {lists:reverse(Opts), lists:reverse(PosArgs)}.
