@@ -19,7 +19,7 @@ print_error(Err, Stack) ->
 print_file_and_line(Err, Stack) ->
     case last_file_info(Stack) of
         {File, Line} ->
-            io:format("~s:~b: ~99999p~n", [File, Line, Err]);
+            io:format("~s:~b: ~99999p~n", [shorten_file(File), Line, Err]);
         error ->
             io:format("~99999p~n", [Err])
     end.
@@ -31,3 +31,6 @@ last_file_info([{_, _, _, Attrs}|Rest]) ->
     end;
 last_file_info([]) ->
     error.
+
+shorten_file(File) ->
+    re:replace(File, "^.*/build/default/lib/cli/", "").
