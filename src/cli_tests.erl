@@ -6,7 +6,8 @@
 
 run() ->
     test_cli_opt(),
-    test_parse_args().
+    test_parse_args(),
+    test_parse_pos_args().
 
 test_cli_opt() ->
     io:format("cli_opt: "),
@@ -120,6 +121,43 @@ test_parse_args() ->
     %% Multiple values
     {ok, {[flag, flag, flag, {optional, "foo"}, {optional, "bar"}], []}} =
         KS(["-FFF", "-Ofoo", "-Obar"]),
+
+    io:format("OK~n").
+
+test_parse_pos_args() ->
+    io:format("parse_pos_args: "),
+
+    P = fun(Args, Pos) ->
+                element(1, parse_args(Args, [], [{pos_args, Pos}]))
+        end,
+
+    {ok, {[], []}}                     = P([],         any),
+    {ok, {[], ["a"]}}                  = P(["a"],      any),
+    {ok, {[], ["a", "b"]}}             = P(["a", "b"], any),
+
+    {ok, {[], ["a"]}}                  = P(["a"],      1),
+    {error, missing_pos_arg}           = P([],         1),
+    {error, {unexpected_pos_arg, "b"}} = P(["a", "b"], 1),
+
+    {ok, {[], ["a", "b"]}}              = P(["a", "b"],     2),
+    {error, missing_pos_arg}            = P([],              2),
+    {error, missing_pos_arg}            = P(["a"],           2),
+    {error, {unexpected_pos_arg, "c"}}  = P(["a", "b", "c"], 2),
+
+    {ok, {[], ["a"]}}                   = P(["a"],           {1, 2}),
+    {ok, {[], ["a", "b"]}}              = P(["a", "b"],      {1, 2}),
+    {error, missing_pos_arg}            = P([],              {1, 2}),
+    {error, {unexpected_pos_arg, "c"}}  = P(["a", "b", "c"], {1, 2}),
+
+    {ok, {[], []}}                      = P([],              {any, 2}),
+    {ok, {[], ["a"]}}                   = P(["a"],           {any, 2}),
+    {ok, {[], ["a", "b"]}}              = P(["a", "b"],      {any, 2}),
+    {error, {unexpected_pos_arg, "c"}}  = P(["a", "b", "c"], {any, 2}),
+
+    {ok, {[], ["a"]}}                   = P(["a"],           {1, any}),
+    {ok, {[], ["a", "b"]}}              = P(["a", "b"],      {1, any}),
+    {ok, {[], ["a", "b", "c"]}}         = P(["a", "b", "c"], {1, any}),
+    {error, missing_pos_arg}            = P([],              {1, any}),
 
     io:format("OK~n").
 

@@ -3,7 +3,7 @@
 -export([new/2, prog/1, usage/1, version/1, desc/1, options/1,
          commands/1, is_command_parser/1, parse_args/2]).
 
--record(parser, {prog, usage, version, desc, opts, cmds}).
+-record(parser, {prog, usage, version, desc, opts, cmds, pos_args}).
 -record(ps, {p, opts, mode}). % parse state (ps)
 -record(lo, {k, s, l, arg}). % lookup option (lo)
 
@@ -18,7 +18,8 @@ new(Prog, Opts) ->
        version=proplists:get_value(version, Opts),
        desc=proplists:get_value(desc, Opts),
        opts=proplists:get_value(options, Opts, []),
-       cmds=proplists:get_value(commands, Opts, [])}.
+       cmds=proplists:get_value(commands, Opts, []),
+       pos_args=proplists:get_value(pos_args, Opts, any)}.
 
 %% ===================================================================
 %% Attrs
@@ -246,14 +247,43 @@ lo_arg(Opt) ->
 
 finalize({ok, {Cmd, Parsed}}, Parser) ->
     {Opts, PosArgs} = finalize_acc(Parsed, [], []),
-    {{ok, {Cmd, Opts, PosArgs}}, Parser};
+    handle_validate_pos_args(
+      validate_pos_args(PosArgs, Parser),
+      {Cmd, Opts, PosArgs}, Parser);
+
 finalize({ok, Parsed}, Parser) ->
-    {{ok, finalize_acc(Parsed, [], [])}, Parser};
+    {Opts, PosArgs} = finalize_acc(Parsed, [], []),
+    handle_validate_pos_args(
+      validate_pos_args(PosArgs, Parser),
+      {Opts, PosArgs}, Parser);
 finalize({error, {unknown_opt, "--help"}}, Parser) ->
     handle_unknown_help_opt(Parser);
 finalize({error, {unknown_opt, "--version"}=Err}, Parser) ->
     handle_unknown_version_opt(Parser, Err);
 finalize({error, Err}, Parser) ->
+    {{error, Err}, Parser}.
+
+validate_pos_args(Args, #parser{pos_args=Spec}) ->
+    check_arg_len(Args, Spec).
+
+check_arg_len(_, any)                 -> ok;
+check_arg_len([], 0)                  -> ok;
+check_arg_len([], {0, _})             -> ok;
+check_arg_len([], {any, _})           -> ok;
+check_arg_len([Arg|_], 0)             -> {error, {unexpected_pos_arg, Arg}};
+check_arg_len([Arg|_], {_, 0})        -> {error, {unexpected_pos_arg, Arg}};
+check_arg_len([], N) when N > 0       -> {error, missing_pos_arg};
+check_arg_len([], {N, _}) when N > 0  -> {error, missing_pos_arg};
+check_arg_len([_|Rest], N)            -> check_arg_len(Rest, decr_arg_pos(N)).
+
+decr_arg_pos(any)                         -> any;
+decr_arg_pos(N) when is_integer(N), N > 0 -> N - 1;
+decr_arg_pos(N) when is_integer(N)        -> N;
+decr_arg_pos({N, M})                      -> {decr_arg_pos(N), decr_arg_pos(M)}.
+
+handle_validate_pos_args(ok, ParseResult, Parser) ->
+    {{ok, ParseResult}, Parser};
+handle_validate_pos_args({error, Err}, _ParseResult, Parser) ->
     {{error, Err}, Parser}.
 
 handle_unknown_help_opt(Parser) ->

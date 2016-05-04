@@ -226,14 +226,18 @@ print_error(Device, Err, Parser) ->
 
 format_error_msg({unknown_opt, Name}) ->
     io_lib:format("unrecognized option '~s'", [Name]);
-format_error_msg({missing_arg, _Key, Name}) ->
+format_error_msg({missing_opt_arg, _Key, Name}) ->
     io_lib:format("option '~s' requires an argument", [Name]);
-format_error_msg({unexpected_arg, _Key, Name}) ->
+format_error_msg({unexpected_opt_arg, _Key, Name}) ->
     io_lib:format("option '~s' doesn't allow an argument", [Name]);
 format_error_msg({unknown_command, Name}) ->
     io_lib:format("unrecognized command '~s'", [Name]);
 format_error_msg(missing_command) ->
-    "this program requires a command".
+    "this program requires a command";
+format_error_msg({unexpected_pos_arg, Arg}) ->
+    io_lib:format("unexpected argument '~s'", [Arg]);
+format_error_msg(missing_pos_arg) ->
+    "missing one or more arguments".
 
 %% ===================================================================
 %% Print usage error
