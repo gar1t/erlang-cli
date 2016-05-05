@@ -3,15 +3,17 @@
 -export([main/1]).
 
 main(Args) ->
-    %cli_debug:trace_function(cli_parser, opt),
     Parser = sample_parser(),
-    case cli:parse_args(Args, Parser) of
-        ok                  -> cli:print_help(Parser);
-        {ok, print_help}    -> cli:print_help(Parser);
-        {ok, print_version} -> cli:print_version(Parser);
-        {ok, Parsed}        -> handle_parsed_args(Parsed);
-        {error, Err}        -> cli:print_error_and_halt(Err, Parser)
-    end.
+    handle_parsed(cli:parse_args(Args, Parser)).
+
+handle_parsed({{ok, print_help}, P}) ->
+    cli:print_help(P);
+handle_parsed({{ok, print_version}, P}) ->
+    cli:print_version(P);
+handle_parsed({{ok, Parsed}, _P}) ->
+    handle_args(Parsed);
+handle_parsed({{error, Err}, P}) ->
+    cli:print_error_and_halt(Err, P).
 
 sample_parser() ->
     cli:parser(
@@ -45,6 +47,6 @@ sample_parser() ->
        }
       ]).
 
-handle_parsed_args({Opts, Args}) ->
+handle_args({Opts, Args}) ->
     io:format("Options: ~p~n", [Opts]),
     io:format("Args:    ~p~n", [Args]).
