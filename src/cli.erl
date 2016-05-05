@@ -2,7 +2,7 @@
 
 -export([parser/4, parser/5, command_parser/5, command_parser/6,
          parse_args/2, print_help/1, print_version/1, print_error/2,
-         print_usage_error/1, main/3]).
+         print_usage_error/1, main/3, main_error/1, main_error/2]).
 
 -define(default_exit_code, 2).
 
@@ -50,3 +50,9 @@ print_usage_error(Parser) ->
 
 main(Args, Parser, HandleParsed) ->
     cli_main:main(Args, Parser, HandleParsed).
+
+main_error(Msg) ->
+    cli_main:main_error(Msg).
+
+main_error(ExitCode, Msg) ->
+    cli_main:main_error(ExitCode, Msg).

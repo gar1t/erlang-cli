@@ -219,25 +219,36 @@ print_error(Err, Parser) ->
     print_error(standard_error, Err, Parser).
 
 print_error(Device, Err, Parser) ->
+    {SuggestHelp, Msg} = format_error_msg(Err),
+    print_prog_msg(Device, Parser, Msg),
+    maybe_print_help_suggestion(SuggestHelp, Device, Parser).
+
+print_prog_msg(Device, Parser, Msg) ->
     Prog = cli_parser:prog(Parser),
-    ErrMsg = format_error_msg(Err),
-    io:format(Device, "~s: ~s~n", [Prog, ErrMsg]),
-    io:format(Device, "Try '~s --help' for more information.~n", [Prog]).
+    io:format(Device, "~s: ~s~n", [Prog, Msg]).
+
+maybe_print_help_suggestion(true, Device, Parser) ->
+    Prog = cli_parser:prog(Parser),
+    io:format(Device, "Try '~s --help' for more information.~n", [Prog]);
+maybe_print_help_suggestion(false, _Device, _Parser) ->
+    ok.
 
 format_error_msg({unknown_opt, Name}) ->
-    io_lib:format("unrecognized option '~s'", [Name]);
+    {true, io_lib:format("unrecognized option '~s'", [Name])};
 format_error_msg({missing_opt_arg, _Key, Name}) ->
-    io_lib:format("option '~s' requires an argument", [Name]);
+    {true, io_lib:format("option '~s' requires an argument", [Name])};
 format_error_msg({unexpected_opt_arg, _Key, Name}) ->
-    io_lib:format("option '~s' doesn't allow an argument", [Name]);
+    {true, io_lib:format("option '~s' doesn't allow an argument", [Name])};
 format_error_msg({unknown_command, Name}) ->
-    io_lib:format("unrecognized command '~s'", [Name]);
+    {true, io_lib:format("unrecognized command '~s'", [Name])};
 format_error_msg(missing_command) ->
-    "this program requires a command";
+    {true, "this program requires a command"};
 format_error_msg({unexpected_pos_arg, Arg}) ->
-    io_lib:format("unexpected argument '~s'", [Arg]);
+    {true, io_lib:format("unexpected argument '~s'", [Arg])};
 format_error_msg(missing_pos_arg) ->
-    "missing one or more arguments".
+    {true, "missing one or more arguments"};
+format_error_msg(Msg) when is_list(Msg); is_binary(Msg) ->
+    {false, Msg}.
 
 %% ===================================================================
 %% Print usage error
