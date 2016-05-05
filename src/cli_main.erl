@@ -2,8 +2,8 @@
 
 -export([main/3, main_error/1, main_error/2]).
 
--define(ok_exit, 0).
--define(error_exit, 1).
+-define(ok_exit_code, 0).
+-define(error_exit_code, 1).
 
 main(Args, Parser, Handler) ->
     handle_main_parse_args(cli:parse_args(Args, Parser), Handler).
@@ -19,15 +19,15 @@ handle_main_parse_args({{error, Err}, P}, _) ->
 
 print_help(P) ->
     cli:print_help(P),
-    ?ok_exit.
+    ?ok_exit_code.
 
 print_version(P) ->
     cli:print_version(P),
-    ?ok_exit.
+    ?ok_exit_code.
 
 print_error(Err, P) ->
     cli:print_error(Err, P),
-    ?error_exit.
+    ?error_exit_code.
 
 handle_parsed(Parsed, Handler, P) ->
     Result = (catch call_handler(Handler, Parsed)),
@@ -41,17 +41,23 @@ call_handler({M, F, A}, Args) ->
 
 maybe_print_error({error, {N, Err}}, P) when is_integer(N) ->
     cli_help:print_error(Err, P);
+maybe_print_error({'EXIT', Err}, P) ->
+    cli_help:print_error(format_exception(Err), P);
 maybe_print_error(_, _) ->
     ok.
 
-to_exit_code(ok)                                    -> ?ok_exit;
+format_exception(Err) ->
+    io_lib:format("internal error~n~p", [Err]).
+
+to_exit_code(ok)                                    -> ?ok_exit_code;
 to_exit_code({ok, N}) when is_integer(N)            -> N;
-to_exit_code(error)                                 -> ?error_exit;
+to_exit_code(error)                                 -> ?error_exit_code;
 to_exit_code({error, N}) when is_integer(N)         -> N;
-to_exit_code({error, {N, _Msg}}) when is_integer(N) -> N.
+to_exit_code({error, {N, _Msg}}) when is_integer(N) -> N;
+to_exit_code({'EXIT', _})                           -> ?error_exit_code.
 
 main_error(Msg) ->
-    throw({error, {?error_exit, Msg}}).
+    throw({error, {?error_exit_code, Msg}}).
 
 main_error(ExitCode, Msg) ->
     throw({error, {ExitCode, Msg}}).
