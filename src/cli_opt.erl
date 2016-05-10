@@ -4,6 +4,8 @@
 
 -export([key/1, desc/1, has_arg/1, short/1, long/1, metavar/1]).
 
+-export([int_val/4]).
+
 -record(opt, {key, desc, has_arg, short, long, metavar}).
 
 %% ===================================================================
@@ -84,6 +86,23 @@ short(#opt{short=Short}) -> Short.
 long(#opt{long=Long}) -> Long.
 
 metavar(#opt{metavar=Metavar}) -> Metavar.
+
+%% ===================================================================
+%% Converters
+%% ===================================================================
+
+int_val(Key, Opts, Default, ErrMsg) ->
+    case proplists:get_value(Key, Opts) of
+        undefined -> Default;
+        Str -> str_to_int(Str, ErrMsg)
+    end.
+
+str_to_int(Str, ErrMsg) ->
+    try
+        list_to_integer(Str)
+    catch
+        error:badarg -> throw({error, ErrMsg})
+    end.
 
 %% ===================================================================
 %% Helpers

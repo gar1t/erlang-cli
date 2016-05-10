@@ -7,7 +7,8 @@
 run() ->
     test_cli_opt(),
     test_parse_args(),
-    test_parse_pos_args().
+    test_parse_pos_args(),
+    test_opt_convert().
 
 test_cli_opt() ->
     io:format("cli_opt: "),
@@ -167,3 +168,13 @@ parse_args(Args, OptSpec) ->
 parse_args(Args, OptSpec, Props) ->
     Parser = cli:parser("p", "", "", OptSpec, Props),
     cli:parse_args(Args, Parser).
+
+test_opt_convert() ->
+    io:format("opt_convert: "),
+
+    1 = cli_opt:int_val(i, [{i, "1"}], 2, "i must be a number"),
+    2 = cli_opt:int_val(i, [], 2, "i must be a number"),
+    {error, "i must be a number"}
+        = (catch cli_opt:int_val(i, [{i, "a"}], 2, "i must be a number")),
+
+    io:format("OK~n").
