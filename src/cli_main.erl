@@ -41,6 +41,8 @@ call_handler({M, F, A}, Args) ->
 
 maybe_print_error({error, {N, Err}}, P) when is_integer(N) ->
     cli_help:print_error(Err, P);
+maybe_print_error({error, Err}, P) ->
+    cli_help:print_error(Err, P);
 maybe_print_error({'EXIT', Err}, P) ->
     cli_help:print_error(format_exception(Err), P);
 maybe_print_error(_, _) ->
@@ -54,6 +56,7 @@ to_exit_code({ok, N}) when is_integer(N)            -> N;
 to_exit_code(error)                                 -> ?error_exit_code;
 to_exit_code({error, N}) when is_integer(N)         -> N;
 to_exit_code({error, {N, _Msg}}) when is_integer(N) -> N;
+to_exit_code({error, _Msg})                         -> ?error_exit_code;
 to_exit_code({'EXIT', _})                           -> ?error_exit_code.
 
 main_error(Msg) ->
