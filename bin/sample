@@ -1,5 +1,4 @@
 #!/usr/bin/env escript
-%%-*-erlang-*-
 %%! -pa build/default/lib/cli/ebin
 
 main(Args) ->
