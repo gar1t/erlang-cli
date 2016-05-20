@@ -92,15 +92,17 @@ print_options(Device, Parser) ->
     print_parser_opts(Device, cli_parser:options(Parser)),
     print_help_and_version_opts(Device, Parser).
 
-print_parser_opts(Device, [Opt|Rest]) ->
-    print_opt(Device, Opt),
-    print_parser_opts(Device, Rest);
-print_parser_opts(_Device, []) ->
-    ok.
+print_parser_opts(Device, Opts) ->
+    lists:foreach(fun(Opt) -> print_opt(Device, Opt) end, Opts).
 
 print_opt(Device, Opt) ->
+    print_visible_opt(cli_opt:visible(Opt), Device, Opt).
+
+print_visible_opt(true, Device, Opt) ->
     print_opt_name_with_padding(Device, format_opt_name(Opt)),
-    print_opt_desc(Device, format_opt_desc(Opt)).
+    print_opt_desc(Device, format_opt_desc(Opt));
+print_visible_opt(false, _, _) ->
+    ok.
 
 format_opt_name(Opt) ->
     Short = cli_opt:short(Opt),

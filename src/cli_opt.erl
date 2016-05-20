@@ -2,28 +2,27 @@
 
 -export([new/2]).
 
--export([key/1, desc/1, has_arg/1, short/1, long/1, metavar/1]).
+-export([key/1, desc/1, has_arg/1, short/1, long/1, metavar/1,
+         visible/1]).
 
 -export([int_val/4]).
 
--record(opt, {key, desc, has_arg, short, long, metavar}).
+-record(opt, {key, desc, has_arg, short, long, metavar, visible}).
 
 %% ===================================================================
 %% New
 %% ===================================================================
 
 new(Key, Opts) ->
-    Desc = desc_from_opts(Opts),
-    HasArg = has_arg_from_opts(Opts),
     {Short, Long} = short_long_from_opts(Opts, Key),
-    Metavar = metavar_from_opts(Opts),
     #opt{
        key=Key,
-       desc=Desc,
-       has_arg=HasArg,
+       desc=desc_from_opts(Opts),
+       has_arg=has_arg_from_opts(Opts),
        short=Short,
        long=Long,
-       metavar=Metavar
+       metavar=metavar_from_opts(Opts),
+       visible=visible_from_opts(Opts)
       }.
 
 desc_from_opts(Opts) ->
@@ -71,6 +70,9 @@ default_metavar(Opts) ->
        {'_',    "VALUE"}],
       Opts).
 
+visible_from_opts(Opts) ->
+    not proplists:get_bool(hidden, Opts).
+
 %% ===================================================================
 %% Attrs
 %% ===================================================================
@@ -86,6 +88,8 @@ short(#opt{short=Short}) -> Short.
 long(#opt{long=Long}) -> Long.
 
 metavar(#opt{metavar=Metavar}) -> Metavar.
+
+visible(#opt{visible=Visible}) -> Visible.
 
 %% ===================================================================
 %% Converters
