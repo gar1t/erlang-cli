@@ -38,6 +38,9 @@ name_from_opts(Opts, Key) ->
 long_opt_from_key(Key) ->
     "--" ++ replace(atom_to_list(Key), "_", "-").
 
+short_long_from_name(any)       -> {any, any};
+short_long_from_name(any_long)  -> {undefined, any};
+short_long_from_name(any_short) -> {any, undefined};
 short_long_from_name(Name) ->
     Pattern = "^(?:(-.))?(?:, )?(?:(--.+))?$",
     case re:run(Name, Pattern, [{capture, all_but_first, list}]) of

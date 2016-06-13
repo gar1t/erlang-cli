@@ -125,11 +125,18 @@ test_parse_args() ->
 
     io:format("OK~n").
 
+parse_args(Args, OptSpec) ->
+    parse_args(Args, OptSpec, []).
+
+parse_args(Args, OptSpec, Props) ->
+    Parser = cli:parser("p", "", "", OptSpec, Props),
+    cli:parse_args(Args, Parser).
+
 test_parse_pos_args() ->
     io:format("parse_pos_args: "),
 
-    P = fun(Args, Pos) ->
-                element(1, parse_args(Args, [], [{pos_args, Pos}]))
+    P = fun(Args, PosArgs) ->
+            element(1, parse_args(Args, [], [{pos_args, PosArgs}]))
         end,
 
     {ok, {[], []}}                     = P([],         any),
@@ -140,7 +147,7 @@ test_parse_pos_args() ->
     {error, missing_pos_arg}           = P([],         1),
     {error, {unexpected_pos_arg, "b"}} = P(["a", "b"], 1),
 
-    {ok, {[], ["a", "b"]}}              = P(["a", "b"],     2),
+    {ok, {[], ["a", "b"]}}              = P(["a", "b"],      2),
     {error, missing_pos_arg}            = P([],              2),
     {error, missing_pos_arg}            = P(["a"],           2),
     {error, {unexpected_pos_arg, "c"}}  = P(["a", "b", "c"], 2),
@@ -161,13 +168,6 @@ test_parse_pos_args() ->
     {error, missing_pos_arg}            = P([],              {1, any}),
 
     io:format("OK~n").
-
-parse_args(Args, OptSpec) ->
-    parse_args(Args, OptSpec, []).
-
-parse_args(Args, OptSpec, Props) ->
-    Parser = cli:parser("p", "", "", OptSpec, Props),
-    cli:parse_args(Args, Parser).
 
 test_opt_convert() ->
     io:format("opt_convert: "),
