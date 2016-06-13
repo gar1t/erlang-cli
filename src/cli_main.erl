@@ -59,6 +59,8 @@ to_exit_code({error, {N, _Msg}}) when is_integer(N) -> N;
 to_exit_code({error, _Msg})                         -> ?error_exit_code;
 to_exit_code({'EXIT', _})                           -> ?error_exit_code.
 
+main_error(ExitCode) when is_integer(ExitCode) ->
+    throw({error, ExitCode});
 main_error(Msg) ->
     throw({error, {?error_exit_code, Msg}}).
 
