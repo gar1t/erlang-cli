@@ -39,10 +39,12 @@ call_handler(F, Args) when is_function(F) ->
 call_handler({M, F, A}, Args) ->
     apply(M, F, [Args|A]).
 
-maybe_print_error({error, {N, Err}}, P) when is_integer(N) ->
-    cli_help:print_error(Err, P);
-maybe_print_error({error, Err}, P) ->
-    cli_help:print_error(Err, P);
+-define(is_msg(X), is_list(X) orelse is_binary(X)).
+
+maybe_print_error({error, {N, Msg}}, P) when is_integer(N), ?is_msg(Msg) ->
+    cli_help:print_error(Msg, P);
+maybe_print_error({error, Msg}, P) when ?is_msg(Msg) ->
+    cli_help:print_error(Msg, P);
 maybe_print_error({'EXIT', Err}, P) ->
     cli_help:print_error(format_exception(Err), P);
 maybe_print_error(_, _) ->
