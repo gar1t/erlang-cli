@@ -70,11 +70,11 @@ acc_tokens([], _, Acc) ->
 
 long_opt(Opt) ->
     case re:split(Opt, "=", [{return, list}, {parts, 2}]) of
-        [Name] -> {long, Name};
+        [Name]      -> {long, Name, undefined};
         [Name, Val] -> {long, Name, Val}
     end.
 
-short_opt([Char]) -> {short, [Char]};
+short_opt([Char])           -> {short, [Char], undefined};
 short_opt([Char|MoreChars]) -> {short, [Char], MoreChars}.
 
 %% -------------------------------------------------------------------
@@ -157,14 +157,10 @@ handle_opt({skipped, NextTokens}, _, _) ->
 handle_opt({error, Err}, _, _) ->
     {error, Err}.
 
-opt([{long, Name}=Token|Rest], #lo{l=Name}=LO) ->
-    long_opt(Token, Rest, LO);
-opt([{long, Name, _}=Token|Rest], #lo{l=Name}=LO) ->
-    long_opt(Token, Rest, LO);
-opt([{short, Name}=Token|Rest], #lo{s=Name}=LO) ->
-    short_opt(Token, Rest, LO);
-opt([{short, Name, _}=Token|Rest], #lo{s=Name}=LO) ->
-    short_opt(Token, Rest, LO);
+opt([{long, Name, Val}|Rest], #lo{l=Name}=LO) ->
+    long_opt({Name, Val}, Rest, LO);
+opt([{short, Name, MoreChars}|Rest], #lo{s=Name}=LO) ->
+    short_opt({Name, MoreChars}, Rest, LO);
 opt([argsep|Rest], _) ->
     {skipped, Rest};
 opt(_, _) ->
@@ -177,27 +173,27 @@ long_opt(Token, Rest, #lo{arg=no, k=Key}) ->
 long_opt(Token, Rest, #lo{arg=opt, k=Key}) ->
     long_opt_maybe_arg(Token, Rest, Key).
 
-long_opt_required_arg({long, _Name, Val}, Rest, Key) ->
+long_opt_required_arg({_Name, Val}, Rest, Key) when Val /= undefined ->
     {ok, {{Key, Val}, Rest}};
-long_opt_required_arg({long, _Name}, [{arg, Val}|Rest], Key) ->
+long_opt_required_arg({_Name, undefined}, [{arg, Val}|Rest], Key) ->
     {ok, {{Key, Val}, Rest}};
-long_opt_required_arg({long, Name}, _Rest, Key) ->
+long_opt_required_arg({Name, undefined}, _Rest, Key) ->
     {error, {missing_opt_arg, Key, opt_token_str({long, Name})}};
 long_opt_required_arg(_Token, _Rest, _Key) ->
     nomatch.
 
-long_opt_no_arg({long, _Name}, Rest, Key) ->
+long_opt_no_arg({_Name, undefined}, Rest, Key) ->
     {ok, {{Key, undefined}, Rest}};
-long_opt_no_arg({long, Name, _Val}, _Rest, Key) ->
+long_opt_no_arg({Name, _Val}, _Rest, Key) ->
     {error, {unexpected_opt_arg, Key, opt_token_str({long, Name})}};
 long_opt_no_arg(_Token, _Rest, _Key) ->
     nomatch.
 
-long_opt_maybe_arg({long, _Name, Val}, Rest, Key) ->
+long_opt_maybe_arg({_Name, Val}, Rest, Key) when Val /= undefined ->
     {ok, {{Key, Val}, Rest}};
-long_opt_maybe_arg({long, _Name}, [{arg, Val}|Rest], Key) ->
+long_opt_maybe_arg({_Name, undefined}, [{arg, Val}|Rest], Key) ->
     {ok, {{Key, Val}, Rest}};
-long_opt_maybe_arg({long, _Name}, Rest, Key) ->
+long_opt_maybe_arg({_Name, undefined}, Rest, Key) ->
     {ok, {{Key, ""}, Rest}};
 long_opt_maybe_arg(_Token, _Rest, _Key) ->
     nomatch.
@@ -209,32 +205,32 @@ short_opt(Token, Rest, #lo{arg=no, k=Key}) ->
 short_opt(Token, Rest, #lo{arg=opt, k=Key}) ->
     short_opt_maybe_arg(Token, Rest, Key).
 
-short_opt_required_arg({short, _Name, Val}, Rest, Key) ->
+short_opt_required_arg({_Name, Val}, Rest, Key) when Val /= undefined ->
     {ok, {{Key, Val}, Rest}};
-short_opt_required_arg({short, _Name}, [{arg, Val}|Rest], Key) ->
+short_opt_required_arg({_Name, undefined}, [{arg, Val}|Rest], Key) ->
     {ok, {{Key, Val}, Rest}};
-short_opt_required_arg({short, Name}, _Rest, Key) ->
+short_opt_required_arg({Name, undefined}, _Rest, Key) ->
     {error, {missing_opt_arg, Key, opt_token_str({short, Name})}};
 short_opt_required_arg(_Token, _Rest, _Key) ->
     nomatch.
 
-short_opt_no_arg({short, _Name, MoreChars}, Rest, Key) ->
+short_opt_no_arg({_Name, MoreChars}, Rest, Key) when MoreChars /= undefined ->
     {ok, {{Key, undefined}, apply_more_short_chars(MoreChars, Rest)}};
-short_opt_no_arg({short, _Name}, Rest, Key) ->
+short_opt_no_arg({_Name, undefined}, Rest, Key) ->
     {ok, {{Key, undefined}, Rest}};
 short_opt_no_arg(_Token, _Rest, _Key) ->
     nomatch.
 
 apply_more_short_chars([Char], Tokens) ->
-    [{short, [Char]}|Tokens];
+    [{short, [Char], undefined}|Tokens];
 apply_more_short_chars([Char|Rest], Tokens) ->
     [{short, [Char], Rest}|Tokens].
 
-short_opt_maybe_arg({short, _Name, Val}, Rest, Key) ->
+short_opt_maybe_arg({_Name, Val}, Rest, Key) when Val /= undefined ->
     {ok, {{Key, Val}, Rest}};
-short_opt_maybe_arg({short, _Name}, [{arg, Val}|Rest], Key) ->
+short_opt_maybe_arg({_Name, undefined}, [{arg, Val}|Rest], Key) ->
     {ok, {{Key, Val}, Rest}};
-short_opt_maybe_arg({short, _Name}, Rest, Key) ->
+short_opt_maybe_arg({_Name, undefined}, Rest, Key) ->
     {ok, {{Key, ""}, Rest}};
 short_opt_maybe_arg(_Token, _Rest, _Key) ->
     nomatch.
