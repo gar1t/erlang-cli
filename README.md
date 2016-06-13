@@ -510,3 +510,7 @@ characters or digits
   right in some cases but we need to support an explicit "don't
   reformat" symbol, maybe appearing at the start of a par - in which
   case we use prettpr:text, which preserves formatting.
+
+- The ronn format form man pages is inherently better for help
+  text. It'd be nice to interface with external markdown files in an
+  elegant way.
