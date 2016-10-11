@@ -1,27 +1,40 @@
 -module(cli_help).
 
--export([print_help/1, print_help/2,
-         print_version/1, print_version/2,
+-export([print_help/1, print_help/2, print_help/3,
+         print_version/1, print_version/2, print_version/3,
          print_error/2, print_error/3,
          print_usage_error/1, print_usage_error/2]).
 
--define(page_width, 79).
--define(opt_desc_col, 30).
+-define(default_page_width, 79).
+-define(default_opt_desc_col, 30).
+
+-record(fmt, {page_width, opt_desc_col}).
 
 %% ===================================================================
 %% Print help
 %% ===================================================================
 
 print_help(Parser) ->
-    print_help(standard_error, Parser).
+    print_help(standard_error, Parser, []).
 
 print_help(Device, Parser) ->
+    print_help(Device, Parser, []).
+
+print_help(Device, Parser, Opts) ->
+    Fmt = init_fmt(Opts),
     print_usage(Device, Parser),
-    print_program_desc(Device, Parser),
+    print_program_desc(Device, Parser, Fmt),
     maybe_print_commands(
       cli_parser:is_command_parser(Parser),
-      Device, Parser),
-    print_options(Device, Parser).
+      Device, Parser, Fmt),
+    print_options(Device, Parser, Fmt).
+
+init_fmt(Opts) ->
+    Opt = fun(Name, Default) -> proplists:get_value(Name, Opts, Default) end,
+    #fmt{
+       page_width=Opt(page_width, ?default_page_width),
+       opt_desc_col=Opt(opt_desc_col, ?default_opt_desc_col)
+      }.
 
 %% -------------------------------------------------------------------
 %% Usage
@@ -49,12 +62,12 @@ usage_line_prefix(more)  -> "   or:".
 %% Program desc
 %% -------------------------------------------------------------------
 
-print_program_desc(Device, Parser) ->
-    io:format(Device, "~s~n", [formatted_program_desc(Parser)]).
+print_program_desc(Device, Parser, Fmt) ->
+    io:format(Device, "~s~n", [formatted_program_desc(Parser, Fmt)]).
 
-formatted_program_desc(Parser) ->
+formatted_program_desc(Parser, #fmt{page_width=Width}) ->
     Pars = split_lines(program_desc(Parser)),
-    prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
+    prettypr:format(pars_doc(Pars), Width, Width).
 
 program_desc(Parser) ->
     case cli_parser:desc(Parser) of
@@ -66,18 +79,18 @@ program_desc(Parser) ->
 %% Commands
 %% -------------------------------------------------------------------
 
-maybe_print_commands(true, Device, Parser) ->
+maybe_print_commands(true, Device, Parser, Fmt) ->
     io:format(Device, "Commands:~n", []),
-    print_commands(Device, cli_parser:commands(Parser)),
+    print_commands(Device, cli_parser:commands(Parser), Fmt),
     io:format(Device, "~n", []);
-maybe_print_commands(false, _Device, _Parser) ->
+maybe_print_commands(false, _Device, _Parser, _Fmt) ->
     ok.
 
-print_commands(Device, [{Name, Help, _Parser}|Rest]) ->
-    print_opt_name_with_padding(Device, format_command_name(Name)),
-    print_opt_desc(Device, Help),
-    print_commands(Device, Rest);
-print_commands(_Device, []) ->
+print_commands(Device, [{Name, Help, _Parser}|Rest], Fmt) ->
+    print_opt_name_with_padding(Device, format_command_name(Name), Fmt),
+    print_opt_desc(Device, Help, Fmt),
+    print_commands(Device, Rest, Fmt);
+print_commands(_Device, [], _Fmt) ->
     ok.
 
 format_command_name(Name) ->
@@ -87,21 +100,21 @@ format_command_name(Name) ->
 %% Options
 %% -------------------------------------------------------------------
 
-print_options(Device, Parser) ->
+print_options(Device, Parser, Fmt) ->
     io:format(Device, "Options:~n", []),
-    print_parser_opts(Device, cli_parser:options(Parser)),
+    print_parser_opts(Device, cli_parser:options(Parser), Fmt),
     print_help_and_version_opts(Device, Parser).
 
-print_parser_opts(Device, Opts) ->
-    lists:foreach(fun(Opt) -> print_opt(Device, Opt) end, Opts).
+print_parser_opts(Device, Opts, Fmt) ->
+    lists:foreach(fun(Opt) -> print_opt(Device, Opt, Fmt) end, Opts).
 
-print_opt(Device, Opt) ->
-    print_visible_opt(cli_opt:visible(Opt), Device, Opt).
+print_opt(Device, Opt, Fmt) ->
+    print_visible_opt(cli_opt:visible(Opt), Device, Opt, Fmt).
 
-print_visible_opt(true, Device, Opt) ->
-    print_opt_name_with_padding(Device, format_opt_name(Opt)),
-    print_opt_desc(Device, format_opt_desc(Opt));
-print_visible_opt(false, _, _) ->
+print_visible_opt(true, Device, Opt, Fmt) ->
+    print_opt_name_with_padding(Device, format_opt_name(Opt), Fmt),
+    print_opt_desc(Device, format_opt_desc(Opt, Fmt), Fmt);
+print_visible_opt(false, _, _, _) ->
     ok.
 
 format_opt_name(Opt) ->
@@ -138,36 +151,36 @@ opt_long(Long, {yes, Metavar}) ->
 opt_long(Long, {optional, Metavar}) ->
     io_lib:format("~s[=~s]", [Long, Metavar]).
 
-print_opt_name_with_padding(Device, FormattedName) ->
+print_opt_name_with_padding(Device, FormattedName, Fmt) ->
     io:format(Device, FormattedName, []),
-    pad_to_opt_desc(Device, FormattedName).
+    pad_to_opt_desc(Device, FormattedName, Fmt).
 
-pad_to_opt_desc(Device, FormattedName) ->
-    case ?opt_desc_col - iolist_size(FormattedName) of
+pad_to_opt_desc(Device, FormattedName, #fmt{opt_desc_col=StartCol}) ->
+    case StartCol - iolist_size(FormattedName) of
         Line1Padding when Line1Padding >= 0 ->
             io:format(Device, string:copies(" ", Line1Padding), []);
         _ ->
             io:format(Device, "~n", []),
-            io:format(Device, string:copies(" ", ?opt_desc_col), [])
+            io:format(Device, string:copies(" ", StartCol), [])
     end.
 
-format_opt_desc(Opt) ->
+format_opt_desc(Opt, #fmt{page_width=Page, opt_desc_col=ColStart}) ->
     Desc = cli_opt:desc(Opt),
-    Width = ?page_width - ?opt_desc_col,
+    Width = Page - ColStart,
     prettypr:format(prettypr:text_par(Desc), Width).
 
-print_opt_desc(Device, Desc) ->
+print_opt_desc(Device, Desc, Fmt) ->
     [Line1|Rest] = split_lines(Desc),
     io:format(Device, Line1, []),
     io:format(Device, "~n", []),
-    print_indented_opt_lines(Device, Rest).
+    print_indented_opt_lines(Device, Fmt, Rest).
 
-print_indented_opt_lines(Device, [Line|Rest]) ->
-    io:format(Device, string:copies(" ", ?opt_desc_col), []),
+print_indented_opt_lines(Device, #fmt{opt_desc_col=Padding}=Fmt, [Line|Rest]) ->
+    io:format(Device, string:copies(" ", Padding), []),
     io:format(Device, Line, []),
     io:format(Device, "~n", []),
-    print_indented_opt_lines(Device, Rest);
-print_indented_opt_lines(_Device, []) ->
+    print_indented_opt_lines(Device, Fmt, Rest);
+print_indented_opt_lines(_Device, _Help, []) ->
     ok.
 
 print_help_and_version_opts(Device, Parser) ->
@@ -191,13 +204,16 @@ maybe_print_version_opt(false, _) ->
 %% ===================================================================
 
 print_version(Parser) ->
-    print_version(standard_error, Parser).
+    print_version(standard_error, Parser, []).
 
 print_version(Device, Parser) ->
+    print_version(Device, Parser, []).
+
+print_version(Device, Parser, Opts) ->
     Prog = cli_parser:prog(Parser),
     {Version, Extra} = split_parser_version(Parser),
     print_program_and_version(Device, Prog, Version),
-    print_version_extra(Device, Extra).
+    print_version_extra(Device, Extra, init_fmt(Opts)).
 
 split_parser_version(Parser) ->
     [Version|Extra] = split_lines(cli_parser:version(Parser)),
@@ -206,12 +222,12 @@ split_parser_version(Parser) ->
 print_program_and_version(Device, Prog, Version) ->
     io:format(Device, "~s ~s~n", [Prog, Version]).
 
-print_version_extra(_Device, []) -> ok;
-print_version_extra(Device, Extra) ->
-    io:format(Device, formatted_version_extra(Extra), []).
+print_version_extra(_Device, [], _Fmt) -> ok;
+print_version_extra(Device, Extra, Fmt) ->
+    io:format(Device, formatted_version_extra(Extra, Fmt), []).
 
-formatted_version_extra(Pars) ->
-    prettypr:format(pars_doc(Pars), ?page_width, ?page_width).
+formatted_version_extra(Pars, #fmt{page_width=Width}) ->
+    prettypr:format(pars_doc(Pars), Width, Width).
 
 %% ===================================================================
 %% Print error
@@ -274,5 +290,6 @@ split_lines(Str) ->
 pars_doc(Pars) ->
     prettypr:par([prettypr:break(text_par_or_empty(Par)) || Par <- Pars]).
 
-text_par_or_empty("") -> prettypr:empty();
-text_par_or_empty(Text) -> prettypr:text_par(Text).
+text_par_or_empty("")           -> prettypr:empty();
+text_par_or_empty("!!" ++ Text) -> prettypr:text(Text);
+text_par_or_empty(Text)         -> prettypr:text_par(Text).

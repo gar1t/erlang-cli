@@ -1,14 +1,27 @@
 -module(cli_tests).
 
--compile([nowarn_unused_function]).
+-compile([nowarn_unused_function, export_all]).
 
--export([run/0]).
+%% ===================================================================
+%% Run
+%% ===================================================================
 
 run() ->
+    cli_debug:init_trace_from_env(os:getenv("TRACE")),
     test_cli_opt(),
     test_parse_args(),
     test_parse_pos_args(),
-    test_opt_convert().
+    test_opt_convert(),
+    test_help().
+
+run(Test) ->
+    cli_debug:init_trace_from_env(os:getenv("TRACE")),
+    F = list_to_atom("test_" ++ Test),
+    ?MODULE:F().
+
+%% ===================================================================
+%% CLI opt
+%% ===================================================================
 
 test_cli_opt() ->
     io:format("cli_opt: "),
@@ -48,6 +61,10 @@ opt_props(O) ->
       short   => cli_opt:short(O),
       long    => cli_opt:long(O),
       metavar => cli_opt:metavar(O)}.
+
+%% ===================================================================
+%% Parse args
+%% ===================================================================
 
 test_parse_args() ->
     io:format("parse_args: "),
@@ -132,6 +149,10 @@ parse_args(Args, OptSpec, Props) ->
     Parser = cli:parser("p", "", "", OptSpec, Props),
     cli:parse_args(Args, Parser).
 
+%% ===================================================================
+%% Parse pos args
+%% ===================================================================
+
 test_parse_pos_args() ->
     io:format("parse_pos_args: "),
 
@@ -169,6 +190,10 @@ test_parse_pos_args() ->
 
     io:format("OK~n").
 
+%% ===================================================================
+%% Opt convert
+%% ===================================================================
+
 test_opt_convert() ->
     io:format("opt_convert: "),
 
@@ -178,3 +203,70 @@ test_opt_convert() ->
         = (catch cli_opt:int_val(i, [{i, "a"}], 2, "i must be a number")),
 
     io:format("OK~n").
+
+%% ===================================================================
+%% Help
+%% ===================================================================
+
+test_help() ->
+    io:format("help: "),
+
+    P =
+        cli:parser(
+          "CMD",
+          "[OPTION]... ARG1 [Arg2]",
+          "Line one of description.\n"
+          "\n"
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque "
+          "facilisis mauris vel aliquet mollis.\n"
+          "\n"
+          "!!  this line   will not be   formatted",
+          [{opt1, "-O, --opt1", "an option", []},
+           {opt2, "--opt2", "another option", [{metavar, "VAL2"}]},
+           {flag, "-F, --flag", "a flag", [flag]}]),
+
+    Buf = iobuf_new(),
+    <<>> = iobuf_data(Buf),
+
+    cli_help:print_help(Buf, P, [{page_width, 72}, {opt_desc_col, 26}]),
+
+    <<"Usage: CMD [OPTION]... ARG1 [Arg2]\n"
+      "Line one of description.\n"
+      "\n"
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque\n"
+      "facilisis mauris vel aliquet mollis.\n"
+      "\n"
+      "  this line   will not be   formatted\n"
+      "\n"
+      "Options:\n"
+      "  -O, --opt1=VALUE        an option\n"
+      "      --opt2=VAL2         another option\n"
+      "  -F, --flag              a flag\n"
+      "      --help     print this help and exit\n">>
+        = iobuf_data(Buf),
+
+    io:format("OK~n").
+
+iobuf_new() ->
+    spawn(fun() -> iobuf_loop([]) end).
+
+iobuf_loop(Data) ->
+    receive
+        {data, From} ->
+            From ! {data, self(), lists:reverse(Data)},
+            iobuf_loop(Data);
+        {io_request, From, Ref, {put_chars, unicode, M, F, A}} ->
+            Chars = apply(M, F, A),
+            From ! {io_reply, Ref, ok},
+            iobuf_loop([Chars|Data]);
+        close ->
+            ok;
+        Other ->
+            error({iobuf_msg, Other})
+    end.
+
+iobuf_data(Buf) ->
+    Buf ! {data, self()},
+    receive
+        {data, Buf, Data} -> iolist_to_binary(Data)
+    end.
