@@ -2,14 +2,19 @@
 %%-*-erlang-*-
 %%! -pa build/default/lib/cli/ebin
 
-main(_Args) ->
+main(Args) ->
     try
-        cli_tests:run()
+        run_tests(Args)
     catch
         _:Err ->
             print_error(Err, erlang:get_stacktrace()),
             erlang:halt(1)
     end.
+
+run_tests([]) ->
+    cli_tests:run();
+run_tests(Tests) ->
+    lists:foreach(fun cli_tests:run/1, Tests).
 
 print_error(Err, Stack) ->
     io:format("ERROR~n"),

@@ -6,7 +6,8 @@
          trace_function/3,
          trace_messages/1,
          trace_messages/2,
-         stop_tracing/0]).
+         stop_tracing/0,
+         init_trace_from_env/1]).
 
 %%%===================================================================
 %%% API
@@ -37,6 +38,26 @@ trace_messages(Process, Opts) ->
 
 stop_tracing() ->
     dbg:stop_clear().
+
+%%%===================================================================
+%%% Init trace from env
+%%%===================================================================
+
+init_trace_from_env(false) ->
+    ok;
+init_trace_from_env(Env) ->
+    lists:foreach(fun apply_trace/1, parse_trace_env(Env)).
+
+parse_trace_env(undefined) ->
+    [];
+parse_trace_env(Str) ->
+    [trace_spec(Token) || Token <- string:tokens(Str, ",")].
+
+trace_spec(Str) ->
+    [list_to_atom(Token) || Token <- string:tokens(Str, ":")].
+
+apply_trace([M])    -> trace_module(M);
+apply_trace([M, F]) -> trace_function(M, F).
 
 %%%===================================================================
 %%% dbg wrappers

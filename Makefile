@@ -7,7 +7,7 @@ clean:
 	rm -rf build ebin rebar.lock .rebar3
 
 test: compile
-	bin/test
+	bin/test $(TESTS)
 
 readme:
 	multimarkdown README.md > /tmp/erlang-cli-readme.html
