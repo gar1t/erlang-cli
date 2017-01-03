@@ -86,11 +86,19 @@ maybe_print_commands(true, Device, Parser, Fmt) ->
 maybe_print_commands(false, _Device, _Parser, _Fmt) ->
     ok.
 
-print_commands(Device, [{Name, Help, _Parser}|Rest], Fmt) ->
-    print_opt_name_with_padding(Device, format_command_name(Name), Fmt),
-    print_opt_desc(Device, Help, Fmt),
+print_commands(Device, [{Name, Help, Parser}|Rest], Fmt) ->
+    maybe_print_command(command_visible(Parser), Device, Name, Help, Fmt),
     print_commands(Device, Rest, Fmt);
 print_commands(_Device, [], _Fmt) ->
+    ok.
+
+command_visible(Parser) ->
+    not cli_parser:hidden(Parser).
+
+maybe_print_command(true, Device, Name, Help, Fmt) ->
+    print_opt_name_with_padding(Device, format_command_name(Name), Fmt),
+    print_opt_desc(Device, Help, Fmt);
+maybe_print_command(false, _, _, _, _) ->
     ok.
 
 format_command_name(Name) ->

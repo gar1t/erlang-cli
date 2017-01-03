@@ -1,9 +1,9 @@
 -module(cli_parser).
 
 -export([new/2, prog/1, usage/1, version/1, desc/1, options/1,
-         commands/1, is_command_parser/1, parse_args/2]).
+         commands/1, is_command_parser/1, hidden/1, parse_args/2]).
 
--record(parser, {prog, usage, version, desc, opts, cmds, pos_args}).
+-record(parser, {prog, usage, version, desc, opts, cmds, pos_args, hidden}).
 -record(ps, {p, opts, mode}). % parse state (ps)
 -record(lo, {k, s, l, arg}). % lookup option (lo)
 
@@ -19,7 +19,8 @@ new(Prog, Opts) ->
        desc=proplists:get_value(desc, Opts),
        opts=proplists:get_value(options, Opts, []),
        cmds=proplists:get_value(commands, Opts, []),
-       pos_args=proplists:get_value(pos_args, Opts, any)}.
+       pos_args=proplists:get_value(pos_args, Opts, any),
+       hidden=proplists:get_bool(hidden, Opts)}.
 
 %% ===================================================================
 %% Attrs
@@ -38,6 +39,8 @@ options(#parser{opts=Opts}) -> Opts.
 commands(#parser{cmds=Cmds}) -> Cmds.
 
 is_command_parser(#parser{cmds=Cmds}) -> length(Cmds) > 0.
+
+hidden(#parser{hidden=Hidden}) -> Hidden.
 
 %% ===================================================================
 %% Parse args
