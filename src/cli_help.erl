@@ -5,6 +5,8 @@
          print_error/2, print_error/3,
          print_usage_error/1, print_usage_error/2]).
 
+-export([format_opt_name/1]).
+
 -define(default_page_width, 79).
 -define(default_opt_desc_col, 30).
 
