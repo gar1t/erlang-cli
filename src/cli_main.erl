@@ -6,7 +6,7 @@
 -define(error_exit_code, 1).
 
 main(Args, Parser, Handler) ->
-    handle_main_parse_args(cli:parse_args(Args, Parser), Handler).
+    handle_main_parse_args(cli_parser:parse_args(Args, Parser), Handler).
 
 handle_main_parse_args({{ok, print_help}, P}, _) ->
     print_help(P);
@@ -18,15 +18,15 @@ handle_main_parse_args({{error, Err}, P}, _) ->
     print_error(Err, P).
 
 print_help(P) ->
-    cli:print_help(P),
+    cli_help:print_help(P),
     ?ok_exit_code.
 
 print_version(P) ->
-    cli:print_version(P),
+    cli_help:print_version(P),
     ?ok_exit_code.
 
 print_error(Err, P) ->
-    cli:print_error(Err, P),
+    cli_help:print_error(Err, P),
     ?error_exit_code.
 
 handle_parsed(Parsed, Handler, P) ->
