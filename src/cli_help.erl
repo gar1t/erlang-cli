@@ -81,25 +81,22 @@ program_desc(Parser) ->
 
 maybe_print_commands(true, Device, Parser, Fmt) ->
     io:format(Device, "Commands:~n", []),
-    print_commands(Device, cli_parser:commands(Parser), Fmt),
+    lists:foreach(
+      fun(Cmd) -> print_visible_command(Cmd, Device, Fmt) end,
+      cli_parser:commands(Parser)),
     io:format(Device, "~n", []);
 maybe_print_commands(false, _Device, _Parser, _Fmt) ->
     ok.
 
-print_commands(Device, [{Name, Help, Parser}|Rest], Fmt) ->
-    maybe_print_command(command_visible(Parser), Device, Name, Help, Fmt),
-    print_commands(Device, Rest, Fmt);
-print_commands(_Device, [], _Fmt) ->
-    ok.
+print_visible_command({Name, Help, CmdParser}, Device, Fmt) ->
+    case cli_parser:visible(CmdParser) of
+        true -> print_command(Device, Name, Help, Fmt);
+        false -> ok
+    end.
 
-command_visible(Parser) ->
-    not cli_parser:hidden(Parser).
-
-maybe_print_command(true, Device, Name, Help, Fmt) ->
+print_command(Device, Name, Help, Fmt) ->
     print_opt_name_with_padding(Device, format_command_name(Name), Fmt),
-    print_opt_desc(Device, Help, Fmt);
-maybe_print_command(false, _, _, _, _) ->
-    ok.
+    print_opt_desc(Device, Help, Fmt).
 
 format_command_name(Name) ->
     io_lib:format("  ~s", [Name]).
@@ -114,16 +111,17 @@ print_options(Device, Parser, Fmt) ->
     print_help_and_version_opts(Device, Parser).
 
 print_parser_opts(Device, Opts, Fmt) ->
-    lists:foreach(fun(Opt) -> print_opt(Device, Opt, Fmt) end, Opts).
+    lists:foreach(fun(Opt) -> print_visible_opt(Opt, Device, Fmt) end, Opts).
+
+print_visible_opt(Opt, Device, Fmt) ->
+    case cli_opt:visible(Opt) of
+        true -> print_opt(Device, Opt, Fmt);
+        false -> ok
+    end.
 
 print_opt(Device, Opt, Fmt) ->
-    print_visible_opt(cli_opt:visible(Opt), Device, Opt, Fmt).
-
-print_visible_opt(true, Device, Opt, Fmt) ->
     print_opt_name_with_padding(Device, format_opt_name(Opt), Fmt),
-    print_opt_desc(Device, format_opt_desc(Opt, Fmt), Fmt);
-print_visible_opt(false, _, _, _) ->
-    ok.
+    print_opt_desc(Device, format_opt_desc(Opt, Fmt), Fmt).
 
 format_opt_name(Opt) ->
     Short = cli_opt:short(Opt),
