@@ -64,7 +64,7 @@ acc_tokens(["--"|Rest], has_opts, Acc) ->
     acc_tokens(Rest, all_args, [argsep|Acc]);
 acc_tokens(["--"++Long|Rest], has_opts, Acc) ->
     acc_tokens(Rest, has_opts, [long_opt(Long)|Acc]);
-acc_tokens(["-"++Short|Rest], has_opts, Acc) ->
+acc_tokens(["-"++Short|Rest], has_opts, Acc) when length(Short) > 0 ->
     acc_tokens(Rest, has_opts, [short_opt(Short)|Acc]);
 acc_tokens([Arg|Rest], has_opts, Acc) ->
     acc_tokens(Rest, has_opts, [{arg, Arg}|Acc]);

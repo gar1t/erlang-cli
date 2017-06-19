@@ -81,6 +81,7 @@ test_parse_args() ->
     %% Positional args with single foo option (Foo)
     Foo = fun(Args) -> P(Args, [{foo, "-F"}]) end,
     {ok, {[],             ["foo", "bar"]}} = Foo(["foo", "bar"]),
+    {ok, {[],             ["-"]}}          = Foo(["-"]),
     {ok, {[{foo, "foo"}], ["bar"]}}        = Foo(["-F", "foo", "bar"]),
     {ok, {[],             ["-F", "foo"]}}  = Foo(["--", "-F", "foo"]),
 
