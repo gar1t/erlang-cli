@@ -1,6 +1,8 @@
 -module(cli_tests).
 
--compile([nowarn_unused_function, export_all]).
+-compile([nowarn_unused_function]).
+
+-export([run/0, run/1]).
 
 %% ===================================================================
 %% Run
